@@ -1,6 +1,7 @@
 # STATUS — Sotto
 
-_Last updated: 2026-06-24 — Phases 1–2 complete (INV-1 hard gate GREEN). Phase 3 in progress._
+_Last updated: 2026-06-24 — **all four phases complete** within session scope. All invariants
+green in Daml Script and re-asserted over the JSON Ledger API; three-view UI live._
 
 ## Version Pins (reproducibility)
 
@@ -9,60 +10,66 @@ _Last updated: 2026-06-24 — Phases 1–2 complete (INV-1 hard gate GREEN). Pha
 | OS (build) | Ubuntu 26.04 LTS (WSL2) | host: Windows 11 |
 | JDK | Eclipse Temurin **17.0.19+10** | portable, `~/jdk17` (no sudo) |
 | dpm (CLI) | **1.0.17** | `~/.dpm` (no sudo) |
-| dpm SDK / Daml / Canton | **3.5.1** | `daml-script`, `codegen`, etc. components 3.5.1 |
-| Node | present | for Next.js frontend (Phase 4) |
+| dpm SDK / Daml / Canton | **3.5.1** | `daml-script`, `codegen` components 3.5.1 |
+| Node | v24 (Win) / v20+ (WSL) | zero-dep UI + JSON-API client |
 | GSD | 1.40.0 | model_profile = inherit |
 
-Env restored in any WSL shell via `source ~/.sotto-env.sh` (sets `JAVA_HOME` + `PATH`).
+Restore the build env in any WSL shell: `source ~/.sotto-env.sh`. Fresh install:
+`bash scripts/install-toolchain.sh`.
 
-## What's Done
-- **Guardrails:** `model_profile: inherit` (verified via `init plan-phase`); git attribution
-  hook strips any Claude co-author/`Generated with` trailer (verified on a real commit);
-  author = the user.
-- **Phase 1 — Recon & toolchain:** JDK 17 + dpm 3.5.1 installed no-sudo in Ubuntu WSL2;
-  versions pinned. dpm `build`/`test`/`sandbox` confirmed working.
-- **Phase 2 — Daml model & privacy proof (INV-1 hard gate GREEN):** `Holding`, `Auction`,
-  `Escrow`, `SealedBid`, `BidInvitation` templates + `Clear` choice. **All 10 Daml Script
-  tests pass**, including `testInv1Privacy` (party-scoped query — the hard gate),
-  `testInv2AtomicDvp` + rollback, `testInv3Authorization`/`NoLateChanges`,
-  `testInv4LoserConfidentiality`, `testInv5NoExternalHolder`, and audit checks
-  (no-double-escrow, no-replay-clear). Bid direction behind one constant (`highestBidWins`).
-- GSD planning scaffold + DECISIONS.md committed.
+## What's Done (Phases 1–4)
+- **Guardrails:** `model_profile: inherit` (verified via `init plan-phase`); git `commit-msg`
+  hook strips any Claude co-author/`Generated with` trailer (verified on real commits); author
+  = the user, on every commit.
+- **Phase 1 — Recon & toolchain:** JDK 17 + dpm 3.5.1 installed no-sudo; versions pinned;
+  JSON Ledger API confirmed reachable.
+- **Phase 2 — Daml model & privacy proof:** `Holding`, `Auction`, `BidInvitation`, `Escrow`,
+  `SealedBid` + `Clear`. **INV-1 hard gate GREEN** via party-scoped Daml Script. All 10 tests
+  pass (INV-1..INV-5 + audit checks). Bid direction behind one constant.
+- **Phase 3 — Backend & E2E:** thin JSON Ledger API v2 client; full list→escrow→bid→clear→
+  settle→refund flow; **INV-1/INV-2 re-asserted at the API layer with party-scoped reads**
+  (11 assertions); reproducible `make demo` (`scripts/demo.sh`).
+- **Phase 4 — Frontend, audit, docs:** three party-scoped views (`frontend/`) make the privacy
+  contrast visible; full audit sweep green; README + DEMO.md written.
 
-## In Progress (Phase 3)
-- `dpm sandbox` (local Canton + JSON Ledger API) launched; onboarding parties and driving
-  the E2E flow through the JSON Ledger API; re-asserting INV-1/INV-2 at the API layer with
-  party-scoped auth; `make demo` bootstrap.
+## Audit Sweep (2026-06-24) — all green
+1. **Invariants (`dpm test`):** 10/10 `ok` — INV-1..INV-5 + `testAuditNoDoubleEscrow`,
+   `testAuditNoReplayClear`, `testInv2RollbackOnInsufficientEscrow`.
+2. **Relabel path:** flip `highestBidWins` True→False builds cleanly and back — a true
+   single-constant change.
+3. **E2E over JSON API (`backend/demo.mjs`):** 11/11 party-scoped assertions pass
+   (INV-1, INV-2, INV-4).
+4. **No off-ledger plaintext aggregation:** backend/UI use only single-party (`readAs`) scoped
+   queries; no admin/omniscient reads.
 
-## What's Left
-- Phase 3: JSON Ledger API client + integration tests (party-scoped); `make demo`.
-- Phase 4: Next.js three-view UI; full audit sweep; README + demo script.
-
-## Known Issues / Risks
+## Known Issues / Notes
 - Build warning: tests share the package with `daml-script` (cosmetic; DAR works on the
   sandbox). Optional polish: split into model-only + test packages.
-- `/mnt/c` cross-filesystem builds are slower than WSL-native (acceptable; sandbox runtime
-  files kept in WSL home).
-- Frontend (Windows) → sandbox JSON API (WSL :7575) relies on WSL2 localhost forwarding.
+- The sandbox binds loopback (`127.0.0.1:7575`); the UI runs in WSL bound to `0.0.0.0:3000`
+  and reaches the API server-side (see DECISIONS D-009).
 
 ## Blockers
 - None.
 
 ## Deviations from the Handoff (with blocking reasons)
-- **Canton Quickstart → dpm `sandbox`** — DECISIONS.md **D-003**. No make/sudo/Docker-WSL
-  integration available; all guarantees preserved (real Canton, JSON Ledger API, one
-  participant hosting many parties, atomic DvP, LocalNet-only).
+- **Canton Quickstart → dpm `sandbox`** (D-003): no make/sudo/Docker-WSL-integration; all
+  guarantees preserved (real Canton, JSON Ledger API, one participant/many parties, atomic DvP,
+  LocalNet-only).
+- **Next.js → zero-dep Node UI** (D-010): `node_modules` on `/mnt/c` WSL is prohibitively slow
+  and budget was reserved for mandatory deliverables; the handoff says the side-by-side view
+  "is the product, not the design" and a thin UI is acceptable. Same demo-legibility outcome.
 
 ## Human-Gated Follow-ups (out of scope this session)
 - DevNet/TestNet/MainNet deploy + validator whitelisting + onboarding-secret flow.
 - Full OIDC authentication.
 - Splice Token Standard integration.
-- Commit-reveal privacy enhancement.
-- Pitch deck and 3-minute video.
+- Commit-reveal privacy enhancement (would blind even the clearing party).
+- Pitch deck and 3-minute video (script in DEMO.md).
+- Optional: port the UI to Next.js + TypeScript; split the Daml test package.
 
-## How to Resume
-1. Ubuntu WSL2: `source ~/.sotto-env.sh`.
+## How to Resume / Run
+1. Ubuntu WSL2: `source ~/.sotto-env.sh` (or `bash scripts/install-toolchain.sh` on a fresh box).
 2. `cd /mnt/c/Users/Ben/Desktop/B3NSAG3/Hackathons/Sotto`.
-3. Daml: `cd daml && dpm build && dpm test` (re-runs INV-1..INV-5).
-4. Sandbox: `dpm sandbox --dar daml/.daml/dist/sotto-0.1.0.dar --json-api-port 7575`.
-5. Read `.planning/STATE.md` for position; continue Phase 3.
+3. Invariants: `cd daml && dpm build && dpm test`.
+4. LocalNet + demo: `make start && make demo` (or `bash scripts/sandbox.sh` then `bash scripts/demo.sh`).
+5. UI: `node frontend/server.mjs` → open http://localhost:3000.
