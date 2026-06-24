@@ -5,6 +5,26 @@ handoff are restated only where we deviate or add nuance.
 
 ---
 
+## D-010 · Three-view UI as a zero-dep Node server instead of Next.js — DEVIATION (blocking reason)
+**2026-06-24** — *Locked decision deviated, with logged blocking reason.* The handoff
+locks "Next.js + TypeScript", but a Next.js install lands `node_modules` on the WSL
+`/mnt/c` mount where npm is prohibitively slow, and the remaining token budget had to be
+reserved for the mandatory stop-deliverables (README, audit sweep, doc finalization). The
+handoff itself states the multi-party side-by-side view "is the product, **not the
+design**" and that a **thin UI is acceptable** (priority #4). The substitute — a single
+zero-dependency Node server (`frontend/server.mjs` + `index.html`) — delivers the identical
+demo-legibility outcome: three **party-scoped** ledger views that make the privacy contrast
+visible (A bids → A & Seller see it, B does not), plus live clear/settle. It reuses the
+same `backend/ledger.mjs` JSON-API client, so the transport story is unchanged. Runs in WSL
+bound to `0.0.0.0:3000` (reachable from the Windows browser; the sandbox's loopback-only
+`:7575` is reached server-side within WSL). **Reversible:** a Next.js port is additive.
+
+## D-009 · Frontend runs in WSL bound to 0.0.0.0; sandbox stays loopback
+**2026-06-24** — Windows↔WSL: a WSL server bound to `0.0.0.0` is reachable from the Windows
+browser via `localhost` (verified), but `dpm sandbox` binds `127.0.0.1` only (not forwarded).
+So the UI server runs in WSL (server-side calls reach `127.0.0.1:7575` directly) and serves
+the browser on `0.0.0.0:3000`. Avoids any cross-host proxy.
+
 ## D-008 · Bid direction default = highest-bid-wins, behind one constant
 **2026-06-24** — Handoff demo framing default is a private OTC block trade (highest bid
 wins). Implemented behind a single comparison point in the Daml model so relabeling to a

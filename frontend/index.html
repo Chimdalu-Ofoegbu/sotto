@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sotto — private sealed-bid OTC execution on Canton</title>
+<style>
+  :root{--bg:#0c0d10;--panel:#15171c;--panel2:#1b1e25;--line:#262a33;--ink:#e8e9ec;--mut:#8b90a0;--accent:#7aa2f7;--ok:#5ec98b;--warn:#e0af68;--seal:#c0caf5}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 ui-sans-serif,system-ui,Segoe UI,Roboto,sans-serif}
+  header{padding:18px 24px;border-bottom:1px solid var(--line);display:flex;align-items:baseline;gap:16px;flex-wrap:wrap}
+  header h1{margin:0;font-size:18px;font-weight:600;letter-spacing:.3px}
+  header .sub{color:var(--mut);font-size:13px}
+  .bar{padding:12px 24px;border-bottom:1px solid var(--line);display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:var(--panel)}
+  .status{margin-left:auto;color:var(--mut);font-size:13px}
+  button{background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer}
+  button:hover:not(:disabled){border-color:var(--accent)}
+  button:disabled{opacity:.4;cursor:not-allowed}
+  button.primary{background:var(--accent);color:#0b1020;border-color:var(--accent);font-weight:600}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;padding:20px 24px}
+  .col{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
+  .col h2{margin:0;padding:14px 16px;font-size:15px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px}
+  .col.seller h2{color:var(--accent)} .col.a h2{color:var(--warn)} .col.b h2{color:var(--ok)}
+  .col .body{padding:14px 16px;display:flex;flex-direction:column;gap:14px}
+  .role{font-size:12px;color:var(--mut);font-weight:400}
+  .controls{display:flex;gap:8px;align-items:center}
+  input{background:#0e1016;border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:7px 9px;width:90px;font-size:13px}
+  .sec{border:1px solid var(--line);border-radius:9px;background:var(--panel2)}
+  .sec h3{margin:0;padding:9px 11px;font-size:12px;color:var(--mut);font-weight:600;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--line)}
+  .sec .items{padding:8px 11px;display:flex;flex-direction:column;gap:6px;min-height:30px}
+  .bid{display:flex;justify-content:space-between;padding:7px 9px;background:#0e1016;border:1px solid var(--line);border-radius:7px}
+  .bid .who{color:var(--seal)} .bid .amt{font-variant-numeric:tabular-nums;font-weight:600}
+  .mine{border-color:var(--accent)}
+  .empty{color:var(--mut);font-style:italic;font-size:12.5px}
+  .lock{font-size:12px;color:var(--mut);background:#0e1016;border:1px dashed var(--line);border-radius:7px;padding:8px 10px}
+  .lock b{color:var(--seal)}
+  .pill{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--mut)}
+  .win{color:var(--ok);font-weight:600}
+  .lose{color:var(--mut)}
+  .hold{display:flex;justify-content:space-between;font-size:12.5px;padding:3px 0}
+  .asset{color:var(--accent)} .cash{color:var(--ok)}
+  footer{padding:10px 24px;color:var(--mut);font-size:12px;border-top:1px solid var(--line)}
+  code{background:#0e1016;padding:1px 5px;border-radius:5px;color:var(--seal)}
+</style>
+</head>
+<body>
+<header>
+  <h1>Sotto</h1>
+  <span class="sub">private sealed-bid OTC block execution · Canton LocalNet · bidder-vs-bidder confidentiality enforced by the protocol</span>
+</header>
+<div class="bar">
+  <button class="primary" id="setup">Set up auction</button>
+  <span class="status" id="status">No auction. Click “Set up auction”.</span>
+</div>
+<div class="grid">
+  <section class="col seller">
+    <h2>Seller <span class="role">· clearing party</span></h2>
+    <div class="body">
+      <div class="controls"><button id="clear" disabled>Clear auction →</button><span class="pill" id="clearhint"></span></div>
+      <div class="sec"><h3>Sealed bids visible to the seller</h3><div class="items" id="seller-bids"></div></div>
+      <div class="sec"><h3>Holdings</h3><div class="items" id="seller-holds"></div></div>
+    </div>
+  </section>
+  <section class="col a">
+    <h2>Bidder A <span class="role">· invited counterparty</span></h2>
+    <div class="body">
+      <div class="controls"><input id="amtA" type="number" value="800" /><button id="bidA" disabled>Submit sealed bid</button></div>
+      <div class="lock">🔒 <b>What A can see:</b> only A's own sealed bid. Other bidders' bids are invisible to A — enforced by Canton sub-transaction privacy, not by this server.</div>
+      <div class="sec"><h3>Sealed bids visible to A</h3><div class="items" id="a-bids"></div></div>
+      <div class="sec"><h3>A's holdings</h3><div class="items" id="a-holds"></div></div>
+    </div>
+  </section>
+  <section class="col b">
+    <h2>Bidder B <span class="role">· invited counterparty</span></h2>
+    <div class="body">
+      <div class="controls"><input id="amtB" type="number" value="950" /><button id="bidB" disabled>Submit sealed bid</button></div>
+      <div class="lock">🔒 <b>What B can see:</b> only B's own sealed bid. A's bid never appears here — that absence is the headline privacy proof.</div>
+      <div class="sec"><h3>Sealed bids visible to B</h3><div class="items" id="b-bids"></div></div>
+      <div class="sec"><h3>B's holdings</h3><div class="items" id="b-holds"></div></div>
+    </div>
+  </section>
+</div>
+<footer>Each column is a <b>party-scoped</b> query of the same ledger (<code>readAs</code> = that party). The seller sees both bids (inherent to clearing); neither bidder sees the other. After clearing, the loser sees only their refund — never the winning price.</footer>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let META = { ready:false, labels:{} };
+const label = (p) => META.labels?.[p] || (p ? p.split('::')[0] : '?');
+const api = async (m,u,b) => (await fetch(u,{method:m,headers:{'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined})).json();
+
+function renderBids(el, bids, mineParty){
+  el.innerHTML = '';
+  if(!bids.length){ el.innerHTML = '<div class="empty">No sealed bids visible to you.</div>'; return; }
+  for(const b of bids){
+    const d=document.createElement('div'); d.className='bid'+(b.payload.bidder===mineParty?' mine':'');
+    d.innerHTML=`<span class="who">${label(b.payload.bidder)}</span><span class="amt">${Number(b.payload.amount)}</span>`;
+    el.appendChild(d);
+  }
+}
+function renderHolds(el, holds){
+  el.innerHTML='';
+  const hs = holds.filter(h=>h.payload);
+  if(!hs.length){ el.innerHTML='<div class="empty">No holdings.</div>'; return; }
+  for(const h of hs){
+    const d=document.createElement('div'); d.className='hold';
+    const isA=h.payload.instrument==='ASSET';
+    d.innerHTML=`<span class="${isA?'asset':'cash'}">${isA?'ASSET block':'CASH'}</span><span>${Number(h.payload.quantity)}</span>`;
+    el.appendChild(d);
+  }
+}
+
+async function refresh(){
+  META = await api('GET','/api/meta');
+  const ready = META.ready;
+  $('bidA').disabled=$('bidB').disabled=!ready||META.cleared;
+  // status + countdown + clear gating
+  if(!ready){ $('status').textContent='No auction. Click “Set up auction”.'; }
+  else if(META.cleared){
+    const w = META.winner ? 'Bidder '+META.winner : 'no qualifying bid';
+    $('status').innerHTML = `<span class="win">Cleared · winner: ${w}</span> — asset delivered, winning cash paid, loser refunded (atomic DvP).`;
+    $('clear').disabled=true; $('clearhint').textContent='settled';
+  } else {
+    const left = Math.max(0, Math.round((META.deadlineMs - Date.now())/1000));
+    if(left>0){ $('status').textContent=`Bidding open · closes in ${left}s`; $('clear').disabled=true; $('clearhint').textContent=`clear in ${left}s`; }
+    else { $('status').textContent='Bidding closed · seller may clear'; $('clear').disabled=false; $('clearhint').textContent='ready'; }
+  }
+  if(!ready) return;
+  const [s,a,b] = await Promise.all([api('GET','/api/view?party=seller'),api('GET','/api/view?party=A'),api('GET','/api/view?party=B')]);
+  renderBids($('seller-bids'), s.bids, null); renderHolds($('seller-holds'), s.holds||s.holdings);
+  renderBids($('a-bids'), a.bids, META.parties?.bidderA); renderHolds($('a-holds'), a.holdings);
+  renderBids($('b-bids'), b.bids, META.parties?.bidderB); renderHolds($('b-holds'), b.holdings);
+  renderHolds($('seller-holds'), s.holdings);
+}
+
+$('setup').onclick=async()=>{ $('setup').disabled=true; $('setup').textContent='Setting up…'; try{ await api('POST','/api/setup'); }finally{ $('setup').disabled=false; $('setup').textContent='Reset auction'; } refresh(); };
+$('bidA').onclick=async()=>{ const r=await api('POST','/api/bid',{which:'A',amount:Number($('amtA').value)}); if(r.error)alert(r.error); refresh(); };
+$('bidB').onclick=async()=>{ const r=await api('POST','/api/bid',{which:'B',amount:Number($('amtB').value)}); if(r.error)alert(r.error); refresh(); };
+$('clear').onclick=async()=>{ const r=await api('POST','/api/clear'); if(r.error)alert(r.error); refresh(); };
+setInterval(refresh, 1500); refresh();
+</script>
+</body>
+</html>
