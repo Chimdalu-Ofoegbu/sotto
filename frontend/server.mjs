@@ -61,9 +61,10 @@ async function placeBid(which, amount) {
 // locked cash is less than the bid. Clearing to it will roll the whole tx back (INV-2).
 async function placeShortBid(which, amount, escrowAmount) {
   const bidder = which === 'A' ? sc.bidderA : sc.bidderB;
-  const small = await L.create(sc.bank, 'Holding', { issuer: sc.bank, owner: bidder, instrument: 'CASH', quantity: String(escrowAmount) });
-  const tx = await L.exercise(bidder, 'Holding', small, 'Transfer', { newOwner: sc.seller });
-  const lockedCash = L.createdOf(tx, 'Holding')[0];
+  // Bank issues the (insufficient) locked cash directly to the clearing party so we get a
+  // valid cid the Escrow can reference; the locked amount is deliberately < the bid amount,
+  // so clearing to this bid will fail Settle's check and roll the whole transaction back.
+  const lockedCash = await L.create(sc.bank, 'Holding', { issuer: sc.bank, owner: sc.seller, instrument: 'CASH', quantity: String(escrowAmount) });
   const esc = await L.create(bidder, 'Escrow', { bidder, clearingParty: sc.seller, cashIssuer: sc.bank, amount: String(amount), lockedCash, auctionDeadline: new Date(sc.deadlineMs).toISOString() });
   await L.create(bidder, 'SealedBid', { bidder, seller: sc.seller, amount: String(amount), escrow: esc, auctionDeadline: new Date(sc.deadlineMs).toISOString() });
   sc.times[which] = hhmmss(); sc.bidAmt[which] = Number(amount);
