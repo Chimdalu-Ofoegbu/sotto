@@ -32,6 +32,17 @@ narrative demo, like the prototype). The **real** Canton privacy/atomicity proof
 verifiable via `dpm test` and `bash scripts/demo.sh` (party-scoped, live ledger). Wiring
 this UI to the live JSON Ledger API (the existing `/api/*` in `server.mjs`) is the next step.
 
+**Update (2026-06-24, live wiring done):** the UI is no longer canned — `server.mjs` now
+drives the real flow (publish/bid/clear/scenario) through `ledger.mjs`, and every POV view
+is built from that party's own scoped reads in `viewModel()`. Privacy is therefore enforced
+at the UI layer too: a bidder's `/api/state` response is assembled only from contracts that
+bidder is a stakeholder of, so it cannot contain the other bid, and a loser's response
+carries no `winnerId`/`winnerAmount`/other-bid. Verified live end-to-end: pre-clear B's view
+excludes A's bid; post-clear seller sees winner+price, the winner knows it won, the loser
+learns only that it lost (no winner id, no cleared price). The deadline is real ledger time
+(bidding window then clear), so the UI gates clearing on a live countdown. **D-007 model
+inheritance and D-006 no-attribution held throughout.**
+
 ## D-009 · Frontend runs in WSL bound to 0.0.0.0; sandbox stays loopback
 **2026-06-24** — Windows↔WSL: a WSL server bound to `0.0.0.0` is reachable from the Windows
 browser via `localhost` (verified), but `dpm sandbox` binds `127.0.0.1` only (not forwarded).

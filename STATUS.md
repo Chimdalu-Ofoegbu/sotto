@@ -29,8 +29,11 @@ Restore the build env in any WSL shell: `source ~/.sotto-env.sh`. Fresh install:
 - **Phase 3 — Backend & E2E:** thin JSON Ledger API v2 client; full list→escrow→bid→clear→
   settle→refund flow; **INV-1/INV-2 re-asserted at the API layer with party-scoped reads**
   (11 assertions); reproducible `make demo` (`scripts/demo.sh`).
-- **Phase 4 — Frontend, audit, docs:** three party-scoped views (`frontend/`) make the privacy
-  contrast visible; full audit sweep green; README + DEMO.md written.
+- **Phase 4 — Frontend, audit, docs:** full audit sweep green; README + DEMO.md written. UI:
+  faithfully ported the Claude Design handoff (`frontend/`, themed multi-screen) and **wired it
+  live to Canton** — every POV view is built from real party-scoped ledger reads, so a bidder's
+  screen genuinely cannot contain the other's bid and a loser never learns the cleared price
+  (verified live end-to-end). Open `http://localhost:3000` (run `node frontend/server.mjs`).
 
 ## Audit Sweep (2026-06-24) — all green
 1. **Invariants (`dpm test`):** 10/10 `ok` — INV-1..INV-5 + `testAuditNoDoubleEscrow`,
