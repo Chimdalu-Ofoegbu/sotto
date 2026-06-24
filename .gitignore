@@ -1,0 +1,45 @@
+# ── Secrets (NEVER commit) ───────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.jwt
+*.pem
+*.key
+*.p12
+*.keystore
+**/onboarding-secret*
+**/*secret*.json
+participant-admin-token*
+**/.canton-credentials/
+
+# ── Daml / Canton build artifacts ────────────────────────────────────────
+.daml/
+.dpm/
+*.dar
+**/.daml/
+
+# ── Canton Quickstart local state ────────────────────────────────────────
+**/docker/data/
+**/.cn/
+**/log/
+canton-*.log
+*.canton.log
+
+# ── Node / Next.js ───────────────────────────────────────────────────────
+node_modules/
+.next/
+out/
+dist/
+build/
+*.tsbuildinfo
+npm-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# ── OS / editor ──────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/*
+!.vscode/extensions.json

@@ -1,0 +1,15 @@
+# Normalize line endings. The build runs in WSL/Linux (Daml, shell scripts),
+# so force LF for code and scripts to avoid CRLF breakage under Windows checkout.
+* text=auto eol=lf
+*.daml   text eol=lf
+*.sh     text eol=lf
+*.yaml   text eol=lf
+*.yml    text eol=lf
+*.json   text eol=lf
+*.ts     text eol=lf
+*.tsx    text eol=lf
+*.md     text eol=lf
+Makefile text eol=lf
+*.png binary
+*.jpg binary
+*.dar binary
