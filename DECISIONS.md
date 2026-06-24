@@ -19,6 +19,19 @@ same `backend/ledger.mjs` JSON-API client, so the transport story is unchanged. 
 bound to `0.0.0.0:3000` (reachable from the Windows browser; the sandbox's loopback-only
 `:7575` is reached server-side within WSL). **Reversible:** a Next.js port is additive.
 
+**Update (2026-06-24, design handoff):** the user provided a Claude Design bundle
+(`sotto-private-otc-execution-ui/`). It was consumed and **ported faithfully** into the
+zero-dep app (`frontend/index.html` + `frontend/screens.js`): exact oklch theme tokens
+(dark/light), Space Grotesk + IBM Plex Mono, a "Viewing as" POV switcher, the full phase
+machine (draft→open→live→locked→cleared→settled/rollback), dual framing (OTC ⇄ procurement),
+four scenarios (two-bids/single/tie/short-escrow), Inspector "need-to-know" popovers, the
+demo timeline, and the side-by-side confidentiality compare overlay. All 12 screen states
+verified rendering headlessly. The design medium is HTML/CSS, so no Next.js install was
+needed. **Current limitation:** the ported UI runs the design's *canned* scenario data (a
+narrative demo, like the prototype). The **real** Canton privacy/atomicity proof remains
+verifiable via `dpm test` and `bash scripts/demo.sh` (party-scoped, live ledger). Wiring
+this UI to the live JSON Ledger API (the existing `/api/*` in `server.mjs`) is the next step.
+
 ## D-009 · Frontend runs in WSL bound to 0.0.0.0; sandbox stays loopback
 **2026-06-24** — Windows↔WSL: a WSL server bound to `0.0.0.0` is reachable from the Windows
 browser via `localhost` (verified), but `dpm sandbox` binds `127.0.0.1` only (not forwarded).

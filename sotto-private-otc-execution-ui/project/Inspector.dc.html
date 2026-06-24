@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+</helmet>
+<div style="position:relative; display:inline-flex; font-family:'Space Grotesk',system-ui,sans-serif">
+  <button type="button" onClick="{{ toggle }}" style="display:inline-flex; align-items:center; gap:6px; padding:3px 9px; border-radius:999px; border:1px solid var(--line2,#2c3239); background:var(--chip,transparent); color:var(--dim,#9aa3ab); font-family:'Space Grotesk',system-ui; font-size:11px; font-weight:500; line-height:1; letter-spacing:.02em; cursor:pointer; white-space:nowrap;" style-hover="border-color:var(--accent,#3b82f6); color:var(--text,#e6e9ec);">
+    <span style="width:7px; height:7px; border-radius:50%; background:var(--accent,#3b82f6); box-shadow:0 0 0 3px var(--accent-dim,rgba(59,130,246,.18));"></span>
+    <span>{{ label }}</span>
+    <span style="opacity:.5; font-size:9px; margin-left:-1px;">▾</span>
+  </button>
+  <sc-if value="{{ open }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ close }}" style="position:fixed; inset:0; z-index:80;"></div>
+    <div style="{{ popBox }}">
+      <div style="display:flex; align-items:center; gap:7px; padding-bottom:9px; margin-bottom:2px; border-bottom:1px solid var(--line,#23282e);">
+        <span style="font-size:9.5px; font-weight:600; letter-spacing:.14em; text-transform:uppercase; color:var(--faint,#687078);">Who can see this</span>
+      </div>
+      <sc-for list="{{ viewers }}" as="v" hint-placeholder-count="2">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:7px 0; border-top:1px solid var(--line,#23282e);">
+          <div style="display:flex; align-items:center; gap:9px; min-width:0;">
+            <span style="width:6px; height:6px; border-radius:50%; flex:none; background:{{ v.dot }};"></span>
+            <span style="{{ v.nameStyle }}">{{ v.name }}</span>
+            <sc-if value="{{ v.you }}" hint-placeholder-val="{{ false }}">
+              <span style="flex:none; font-size:9px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; padding:1px 5px; border-radius:3px; background:var(--text,#e6e9ec); color:var(--bg,#0b0d10);">You</span>
+            </sc-if>
+          </div>
+          <span style="{{ v.tagStyle }}">{{ v.role }}</span>
+        </div>
+      </sc-for>
+      <sc-if value="{{ denied }}" hint-placeholder-val="">
+        <div style="display:flex; align-items:center; gap:9px; padding:7px 0; border-top:1px solid var(--line,#23282e);">
+          <span style="width:6px; height:6px; border-radius:50%; flex:none; background:transparent; border:1px solid var(--faint,#687078);"></span>
+          <span style="font-size:12px; color:var(--faint,#687078); text-decoration:line-through; text-decoration-color:var(--line2,#2c3239);">{{ denied }}</span>
+        </div>
+      </sc-if>
+      <div style="margin-top:9px; padding-top:9px; border-top:1px solid var(--line,#23282e); font-size:10.5px; line-height:1.45; color:var(--faint,#687078);">{{ footer }}</div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:260,&quot;height&quot;:120},&quot;viewers&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;{name:string,role:string,you?:boolean,accent?:boolean}[]&quot;,&quot;default&quot;:[{&quot;name&quot;:&quot;Acme Treasury&quot;,&quot;role&quot;:&quot;clearing party&quot;,&quot;accent&quot;:true},{&quot;name&quot;:&quot;Meridian Capital&quot;,&quot;role&quot;:&quot;invited&quot;,&quot;you&quot;:true}]},&quot;label&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Seen by 2&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;footer&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;denied&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;align&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;left&quot;,&quot;right&quot;],&quot;default&quot;:&quot;left&quot;,&quot;tsType&quot;:&quot;'left'|'right'&quot;}}">
+class Component extends DCLogic {
+  state = { open: false };
+  renderVals() {
+    const raw = this.props.viewers || [];
+    const align = this.props.align || 'left';
+    const viewers = raw.map(x => ({
+      name: x.name,
+      role: x.role,
+      you: !!x.you,
+      dot: x.accent ? 'var(--accent,#3b82f6)' : (x.you ? 'var(--text,#e6e9ec)' : 'var(--faint,#687078)'),
+      nameStyle: {
+        color: (x.you || x.accent) ? 'var(--text,#e6e9ec)' : 'var(--dim,#9aa3ab)',
+        fontWeight: (x.you || x.accent) ? 600 : 500,
+        fontSize: '12.5px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
+      },
+      tagStyle: {
+        fontSize: '9.5px', fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase',
+        padding: '2px 6px', borderRadius: '4px', whiteSpace: 'nowrap', flex: 'none',
+        background: x.accent ? 'var(--accent-dim,rgba(59,130,246,.16))' : 'var(--line,#23282e)',
+        color: x.accent ? 'var(--accent-text,#7db4ff)' : 'var(--faint,#687078)'
+      }
+    }));
+    const popBox = {
+      position: 'absolute', top: 'calc(100% + 9px)', zIndex: 81, minWidth: '256px', maxWidth: '300px',
+      background: 'var(--pop,#15191d)', border: '1px solid var(--line2,#2c3239)', borderRadius: '10px',
+      boxShadow: '0 16px 40px rgba(0,0,0,.5), 0 2px 8px rgba(0,0,0,.3)', padding: '11px 13px 12px'
+    };
+    popBox[align === 'right' ? 'right' : 'left'] = '0';
+    return {
+      open: this.state.open,
+      viewers,
+      label: this.props.label || ('Seen by ' + raw.length),
+      footer: this.props.footer || 'Need-to-know is enforced by the network, not by a trusted intermediary.',
+      denied: this.props.denied || '',
+      popBox,
+      toggle: () => this.setState(s => ({ open: !s.open })),
+      close: () => this.setState({ open: false })
+    };
+  }
+}
+</script>
+</body>
+</html>

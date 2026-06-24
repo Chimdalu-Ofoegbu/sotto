@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  [data-theme="dark"]{
+    --bg:#0a0c0f; --panel:#0f1318; --panel2:#13181d; --pop:#161b21; --line:#1e242b; --line2:#2b333c;
+    --text:#e9ecef; --dim:#98a2ac; --faint:#646e78; --chip:rgba(255,255,255,.025);
+    --accent:oklch(0.64 0.13 232); --accent-text:oklch(0.82 0.09 232); --accent-dim:oklch(0.64 0.13 232 / .16); --accent-line:oklch(0.64 0.13 232 / .42);
+    --good:oklch(0.74 0.12 165); --good-text:oklch(0.82 0.1 165); --good-dim:oklch(0.74 0.12 165 / .15);
+    --warn:oklch(0.8 0.12 78); --warn-dim:oklch(0.8 0.12 78 / .15);
+    --bad:oklch(0.68 0.17 26); --bad-text:oklch(0.78 0.14 26); --bad-dim:oklch(0.68 0.17 26 / .15);
+    --hatch:repeating-linear-gradient(45deg, #161b21 0 7px, #11161b 7px 14px);
+    --scrim:rgba(5,7,9,.78);
+  }
+  [data-theme="light"]{
+    --bg:#eceef1; --panel:#ffffff; --panel2:#f5f7f9; --pop:#ffffff; --line:#e4e8ec; --line2:#d3d9df;
+    --text:#0e141a; --dim:#566069; --faint:#8b939c; --chip:rgba(0,0,0,.018);
+    --accent:oklch(0.55 0.14 232); --accent-text:oklch(0.48 0.14 232); --accent-dim:oklch(0.55 0.14 232 / .12); --accent-line:oklch(0.55 0.14 232 / .34);
+    --good:oklch(0.52 0.12 165); --good-text:oklch(0.46 0.12 165); --good-dim:oklch(0.52 0.12 165 / .12);
+    --warn:oklch(0.6 0.13 70); --warn-dim:oklch(0.6 0.13 70 / .14);
+    --bad:oklch(0.55 0.18 26); --bad-text:oklch(0.5 0.18 26); --bad-dim:oklch(0.55 0.18 26 / .12);
+    --hatch:repeating-linear-gradient(45deg, #e8ecf0 0 7px, #f0f3f6 7px 14px);
+    --scrim:rgba(40,46,54,.5);
+  }
+  @keyframes fadeUp{from{transform:translateY(9px)}to{transform:translateY(0)}}
+  @keyframes sealPop{from{transform:scale(.97)}to{transform:scale(1)}}
+  @keyframes barGrow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+  @keyframes pulseR{0%{box-shadow:0 0 0 0 var(--accent-dim)}70%{box-shadow:0 0 0 12px transparent}100%{box-shadow:0 0 0 0 transparent}}
+  @keyframes legL{from{transform:translateX(34px)}to{transform:translateX(0)}}
+  @keyframes legR{from{transform:translateX(-34px)}to{transform:translateX(0)}}
+  @keyframes lockSpin{from{transform:scale(.7) rotate(-10deg)}to{transform:scale(1) rotate(0)}}
+</style>
+</helmet>
+<div data-theme="{{ theme }}" style="min-height:100vh; background:var(--bg); color:var(--text); font-family:'Space Grotesk',system-ui,sans-serif; -webkit-font-smoothing:antialiased; padding-bottom:108px;">
+
+  <!-- ============ HEADER ============ -->
+  <header style="position:sticky; top:0; z-index:40; display:flex; align-items:center; gap:20px; padding:0 22px; height:60px; background:var(--panel); border-bottom:1px solid var(--line);">
+    <div style="display:flex; align-items:center; gap:11px;">
+      <svg width="22" height="22" viewBox="0 0 24 24" style="color:var(--accent); display:block;">
+        <circle cx="12" cy="12" r="9.2" fill="none" stroke="currentColor" stroke-width="1.8"></circle>
+        <rect x="3.4" y="10" width="17.2" height="4" rx="1.2" fill="currentColor"></rect>
+      </svg>
+      <span style="font-size:18px; font-weight:600; letter-spacing:.2em; color:var(--text);">SOTTO</span>
+      <span style="font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--faint); border-left:1px solid var(--line2); padding-left:11px; margin-left:3px; white-space:nowrap;">{{ framingLabel }}</span>
+    </div>
+
+    <div style="flex:1;"></div>
+
+    <!-- Viewing-as switcher -->
+    <div style="display:flex; align-items:center; gap:11px;">
+      <span style="font-size:10px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--faint);">Viewing&nbsp;as</span>
+      <div style="display:flex; padding:3px; gap:3px; background:var(--bg); border:1px solid var(--line2); border-radius:9px;">
+        <button type="button" onClick="{{ viewSeller }}" style="{{ vSellerStyle }}">{{ L.sellerRole }}</button>
+        <button type="button" onClick="{{ viewA }}" style="{{ vAStyle }}"><span style="width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.7;"></span>{{ L.bidderWord }} A</button>
+        <button type="button" onClick="{{ viewB }}" style="{{ vBStyle }}"><span style="width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.7;"></span>{{ L.bidderWord }} B</button>
+      </div>
+    </div>
+
+    <div style="width:1px; height:26px; background:var(--line2);"></div>
+
+    <button type="button" onClick="{{ openCompare }}" style="display:flex; align-items:center; gap:8px; padding:8px 13px; border-radius:8px; border:1px solid var(--accent-line); background:var(--accent-dim); color:var(--accent-text); font-family:'Space Grotesk',system-ui; font-size:12px; font-weight:600; cursor:pointer; white-space:nowrap;" style-hover="background:var(--accent); color:#fff;">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="7" height="16" rx="1"></rect><rect x="14" y="4" width="7" height="16" rx="1"></rect></svg>
+      Split view
+    </button>
+
+    <button type="button" onClick="{{ framingToggle }}" title="Toggle framing" style="display:flex;align-items:center;gap:7px;padding:8px 11px;border-radius:8px;border:1px solid var(--line2);background:transparent;color:var(--dim);font-family:'Space Grotesk',system-ui;font-size:11.5px;font-weight:600;cursor:pointer;" style-hover="border-color:var(--accent-line);color:var(--text);">⇄</button>
+
+    <button type="button" onClick="{{ themeToggle }}" title="Toggle theme" style="display:flex;align-items:center;gap:7px;padding:8px 12px;border-radius:8px;border:1px solid var(--line2);background:transparent;color:var(--dim);font-family:'Space Grotesk',system-ui;font-size:11.5px;font-weight:600;cursor:pointer;min-width:64px;justify-content:center;" style-hover="border-color:var(--accent-line);color:var(--text);">{{ themeLabel }}</button>
+  </header>
+
+  <!-- ============ CONTEXT STRIP ============ -->
+  <div style="display:flex; align-items:center; gap:0; padding:13px 22px; background:var(--panel2); border-bottom:1px solid var(--line); flex-wrap:wrap; row-gap:10px;">
+    <div style="display:flex; flex-direction:column; gap:3px; padding-right:22px;">
+      <span style="font-size:9.5px; font-weight:600; letter-spacing:.13em; text-transform:uppercase; color:var(--faint);">Instrument</span>
+      <span style="font-size:13.5px; font-weight:600; color:var(--text);">U.S. Treasury Bill <span style="color:var(--dim); font-weight:500;">· 26-week · mat. 17 Dec 2026</span></span>
+    </div>
+    <div style="width:1px; height:30px; background:var(--line2);"></div>
+    <div style="display:flex; flex-direction:column; gap:3px; padding:0 22px;">
+      <span style="font-size:9.5px; font-weight:600; letter-spacing:.13em; text-transform:uppercase; color:var(--faint);">Face value</span>
+      <span style="font-size:13.5px; font-weight:600; color:var(--text); font-family:'IBM Plex Mono',monospace; font-variant-numeric:tabular-nums;">{{ faceFmt }}</span>
+    </div>
+    <div style="width:1px; height:30px; background:var(--line2);"></div>
+    <div style="display:flex; flex-direction:column; gap:3px; padding:0 22px;">
+      <span style="font-size:9.5px; font-weight:600; letter-spacing:.13em; text-transform:uppercase; color:var(--faint);">{{ L.reserveWord }}</span>
+      <span style="font-size:13.5px; font-weight:600; color:var(--text); font-family:'IBM Plex Mono',monospace; font-variant-numeric:tabular-nums;">{{ reserveFmt }}</span>
+    </div>
+    <div style="width:1px; height:30px; background:var(--line2);"></div>
+    <div style="display:flex; flex-direction:column; gap:3px; padding:0 22px;">
+      <span style="font-size:9.5px; font-weight:600; letter-spacing:.13em; text-transform:uppercase; color:var(--faint);">CUSIP</span>
+      <span style="font-size:13.5px; font-weight:600; color:var(--text); font-family:'IBM Plex Mono',monospace;">912797 KL4</span>
+    </div>
+    <div style="flex:1; min-width:18px;"></div>
+    <div style="display:flex; align-items:center; gap:14px;">
+      <dc-import name="Inspector" viewers="{{ termsViewers }}" label="{{ termsLabel }}" footer="Auction terms are shared with everyone invited." hint-size="150px,30px"></dc-import>
+      <div style="{{ statusStyle }}"><span style="width:7px;height:7px;border-radius:50%;background:currentColor;"></span>{{ statusLabel }}</div>
+    </div>
+  </div>
+
+  <!-- ============ MAIN ============ -->
+  <main style="max-width:1180px; margin:0 auto; padding:30px 24px 10px;">
+
+    <!-- ===== SELLER · CREATE LISTING ===== -->
+    <sc-if value="{{ scrSellerDraft }}" hint-placeholder-val="{{ true }}">
+      <div style="animation:fadeUp .3s ease both;">
+        <div style="display:flex; align-items:baseline; gap:12px; margin-bottom:4px;">
+          <h1 style="margin:0; font-size:24px; font-weight:600; letter-spacing:-.01em;">Create {{ L.listing }}</h1>
+          <span style="font-size:13px; color:var(--dim);">{{ winRuleLine }}</span>
+        </div>
+        <p style="margin:0 0 24px; font-size:13.5px; color:var(--dim); max-width:560px;">You are the clearing party. Define the block, set a {{ reserveWordLower }}, and invite counterparties. Their bids stay sealed until you clear.</p>
+        <div style="display:grid; grid-template-columns:1fr 360px; gap:22px; align-items:start;">
+          <div style="background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:6px 22px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:18px 0; border-bottom:1px solid var(--line);">
+              <span style="font-size:13px; color:var(--dim);">Instrument</span>
+              <span style="font-size:14px; font-weight:600;">U.S. Treasury Bill · 26-week</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:18px 0; border-bottom:1px solid var(--line);">
+              <span style="font-size:13px; color:var(--dim);">Face value</span>
+              <span style="font-size:14px; font-weight:600; font-family:'IBM Plex Mono',monospace;">{{ faceFmt }}</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:18px 0; border-bottom:1px solid var(--line);">
+              <span style="font-size:13px; color:var(--dim);">{{ L.reserveWord }}</span>
+              <span style="font-size:14px; font-weight:600; font-family:'IBM Plex Mono',monospace; color:var(--accent-text);">{{ reserveFmt }}</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:18px 0;">
+              <span style="font-size:13px; color:var(--dim);">Deadline</span>
+              <span style="font-size:14px; font-weight:600;">Today · 14:30 ET</span>
+            </div>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:18px;">
+            <div style="background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:18px 18px 16px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+                <span style="font-size:10px; font-weight:600; letter-spacing:.13em; text-transform:uppercase; color:var(--faint);">{{ L.invite }}</span>
+                <span style="font-size:11px; color:var(--dim);">2 selected</span>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:9px;">
+                <div style="display:flex; align-items:center; gap:11px; padding:10px 12px; background:var(--panel2); border:1px solid var(--line2); border-radius:8px;">
+                  <span style="width:18px;height:18px;border-radius:5px;background:var(--accent);display:flex;align-items:center;justify-content:center;flex:none;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M20 6L9 17l-5-5"></path></svg></span>
+                  <span style="font-size:13.5px; font-weight:600;">Meridian Capital</span>
+                  <span style="margin-left:auto; font-size:11px; color:var(--faint);">desk · MER</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:11px; padding:10px 12px; background:var(--panel2); border:1px solid var(--line2); border-radius:8px;">
+                  <span style="width:18px;height:18px;border-radius:5px;background:var(--accent);display:flex;align-items:center;justify-content:center;flex:none;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M20 6L9 17l-5-5"></path></svg></span>
+                  <span style="font-size:13.5px; font-weight:600;">Halcyon Asset Mgmt</span>
+                  <span style="margin-left:auto; font-size:11px; color:var(--faint);">desk · HAL</span>
+                </div>
+              </div>
+            </div>
+            <div style="background:var(--accent-dim); border:1px solid var(--accent-line); border-radius:12px; padding:16px 18px;">
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+                <span style="font-size:11px; font-weight:600; letter-spacing:.04em; color:var(--accent-text);">What becomes visible to whom</span>
+              </div>
+              <ul style="margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:8px;">
+                <li style="font-size:12.5px; color:var(--text); line-height:1.4;">Terms &amp; reserve — <span style="color:var(--dim);">all invited counterparties</span></li>
+                <li style="font-size:12.5px; color:var(--text); line-height:1.4;">Each bid — <span style="color:var(--dim);">its bidder + you (clearing party) only</span></li>
+                <li style="font-size:12.5px; color:var(--text); line-height:1.4;">No counterparty sees another's bid or identity</li>
+              </ul>
+              <div style="margin-top:13px;">
+                <dc-import name="Inspector" viewers="{{ termsViewers }}" label="Preview need-to-know" footer="Bidders never see each other. Enforced on Canton." hint-size="150px,30px"></dc-import>
+              </div>
+            </div>
+            <button type="button" onClick="{{ publish }}" style="width:100%; padding:14px; border-radius:9px; border:none; background:var(--accent); color:#fff; font-family:'Space Grotesk',system-ui; font-size:14px; font-weight:600; cursor:pointer;" style-hover="filter:brightness(1.08);">Publish listing &amp; open bidding</button>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ===== SELLER · MONITOR (open / live) ===== -->
+    <sc-if value="{{ scrSellerMonitor }}" hint-placeholder-val="{{ false }}">
+      <div style="animation:fadeUp .3s ease both;">
+        <div style="display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:20px;">
+          <div>
+            <h1 style="margin:0 0 4px; font-size:24px; font-weight:600; letter-spacing:-.01em;">Sealed responses</h1>
+            <p style="margin:0; font-size:13.5px; color:var(--dim);">{{ respCount }} of 2 invited counterparties have responded. Amounts stay sealed — even to you — until the deadline closes the envelope.</p>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:11px; color:var(--faint); letter-spacing:.04em; text-transform:uppercase;">Closes in</div>
+            <div style="font-size:20px; font-weight:600; font-family:'IBM Plex Mono',monospace; color:var(--accent-text);">00:27:14</div>
+          </div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <sc-for list="{{ respRows }}" as="row" hint-placeholder-count="2">
+            <div style="display:flex; align-items:center; gap:16px; padding:18px 20px; background:var(--panel); border:1px solid var(--line); border-radius:12px;">
+              <span style="width:36px;height:36px;border-radius:8px;background:var(--panel2);border:1px solid var(--line2);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--dim);flex:none;">{{ row.code }}</span>
+              <div style="min-width:160px;">
+                <div style="font-size:14px; font-weight:600;">{{ row.name }}</div>
+                <div style="font-size:11.5px; color:var(--faint);">{{ row.deskLine }}</div>
+              </div>
+              <sc-if value="{{ row.in }}" hint-placeholder-val="{{ false }}">
+                <div style="flex:1; display:flex; align-items:center; gap:14px;">
+                  <div style="flex:1; display:flex; align-items:center; gap:12px; padding:11px 14px; border-radius:8px; background:var(--hatch); border:1px dashed var(--line2);">
+                    <svg width="15" height="15" viewBox="0 0 24 24" style="color:var(--dim);flex:none;"><rect x="3" y="10" width="18" height="4" rx="1" fill="currentColor"></rect><rect x="6" y="5" width="12" height="3" rx="1" fill="currentColor" opacity=".5"></rect></svg>
+                    <span style="font-size:12.5px; font-weight:500; color:var(--dim); letter-spacing:.02em;">Sealed bid received — held by the network</span>
+                  </div>
+                  <span style="font-size:12px; font-family:'IBM Plex Mono',monospace; color:var(--faint);">{{ row.time }}</span>
+                </div>
+              </sc-if>
+              <sc-if value="{{ row.awaiting }}" hint-placeholder-val="{{ false }}">
+                <div style="flex:1; display:flex; align-items:center; gap:10px;">
+                  <span style="width:7px;height:7px;border-radius:50%;border:1.5px solid var(--faint);"></span>
+                  <span style="font-size:12.5px; color:var(--faint);">Awaiting response</span>
+                </div>
+              </sc-if>
+              <div style="margin-left:auto;"><dc-import name="Inspector" viewers="{{ row.viewers }}" label="Seen by 2" align="right" footer="Sealed to you until you clear after the deadline." hint-size="120px,30px"></dc-import></div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="margin-top:18px; display:flex; align-items:center; gap:14px; padding:15px 18px; border:1px dashed var(--line2); border-radius:12px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" style="color:var(--faint);flex:none;"><rect x="3" y="10" width="18" height="4" rx="1" fill="currentColor"></rect><rect x="6" y="5" width="12" height="3" rx="1" fill="currentColor" opacity=".5"></rect></svg>
+          <span style="font-size:13px; color:var(--dim);">Bids unseal to you only when the deadline closes. Clearing is locked until then.</span>
+          <button type="button" disabled style="margin-left:auto; padding:11px 18px; border-radius:8px; border:1px solid var(--line2); background:transparent; color:var(--faint); font-family:'Space Grotesk',system-ui; font-size:13px; font-weight:600; cursor:not-allowed;">{{ L.clearWord }} — locked</button>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ===== SELLER · CLEARING (locked) ===== -->
+    <sc-if value="{{ scrSellerClear }}" hint-placeholder-val="{{ false }}">
+      <div style="animation:fadeUp .3s ease both;">
+        <div style="display:flex; align-items:center; gap:11px; margin-bottom:6px;">
+          <h1 style="margin:0; font-size:24px; font-weight:600; letter-spacing:-.01em;">Clearing view</h1>
+          <span style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:var(--accent-dim);color:var(--accent-text);font-size:11px;font-weight:600;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 2a5 5 0 0 1 5 5v3H7V7a5 5 0 0 1 5-5z" opacity=".6"></path><rect x="5" y="10" width="14" height="10" rx="2"></rect></svg> Clearing party · authorized</span>
+        </div>
+        <p style="margin:0 0 22px; font-size:13.5px; color:var(--dim);">Deadline passed. Sealed bids are now visible to you alone. {{ winRuleLine }}.</p>
+
+        <sc-if value="{{ tie }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex; align-items:center; gap:11px; margin-bottom:14px; padding:12px 16px; border-radius:10px; background:var(--warn-dim); border:1px solid var(--warn);">
+            <span style="font-size:12.5px; font-weight:600; color:var(--warn);">Tie detected.</span>
+            <span style="font-size:12.5px; color:var(--dim);">Two bids are identical. Tie-break rule: earliest sealed submission clears.</span>
+          </div>
+        </sc-if>
+        <sc-if value="{{ isSingle }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex; align-items:center; gap:11px; margin-bottom:14px; padding:12px 16px; border-radius:10px; background:var(--accent-dim); border:1px solid var(--accent-line);">
+            <span style="font-size:12.5px; font-weight:600; color:var(--accent-text);">Single bidder.</span>
+            <span style="font-size:12.5px; color:var(--dim);">One sealed bid received. It clears if it meets the {{ reserveWordLower }}.</span>
+          </div>
+        </sc-if>
+
+        <div style="background:var(--panel); border:1px solid var(--line); border-radius:12px; overflow:hidden;">
+          <div style="display:grid; grid-template-columns:44px 1fr 200px 160px 120px 130px; gap:0; padding:12px 20px; border-bottom:1px solid var(--line); background:var(--panel2);">
+            <span style="font-size:10px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--faint);">#</span>
+            <span style="font-size:10px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--faint);">Counterparty</span>
+            <span style="font-size:10px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--faint); text-align:right;">Sealed bid</span>
+            <span style="font-size:10px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--faint); text-align:right;">Escrow</span>
+            <span style="font-size:10px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--faint); text-align:right;">Sealed at</span>
+            <span></span>
+          </div>
+          <sc-for list="{{ rankRows }}" as="row" hint-placeholder-count="2">
+            <div style="{{ row.rowStyle }}">
+              <span style="font-size:14px; font-weight:700; font-family:'IBM Plex Mono',monospace; color:{{ row.rankColor }};">{{ row.rank }}</span>
+              <div style="display:flex; align-items:center; gap:11px; min-width:0;">
+                <span style="font-size:14.5px; font-weight:600;">{{ row.name }}</span>
+                <sc-if value="{{ row.best }}" hint-placeholder-val="{{ false }}"><span style="font-size:9.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; padding:2px 7px; border-radius:4px; background:var(--accent); color:#fff;">Best</span></sc-if>
+                <sc-if value="{{ row.short }}" hint-placeholder-val="{{ false }}"><span style="font-size:9.5px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; padding:2px 7px; border-radius:4px; background:var(--bad-dim); color:var(--bad-text);">Escrow short</span></sc-if>
+              </div>
+              <span style="font-size:15px; font-weight:600; font-family:'IBM Plex Mono',monospace; font-variant-numeric:tabular-nums; text-align:right; color:{{ row.amtColor }};">{{ row.amount }}</span>
+              <span style="font-size:13px; font-family:'IBM Plex Mono',monospace; font-variant-numeric:tabular-nums; text-align:right; color:{{ row.escColor }};">{{ row.escrow }}</span>
+              <span style="font-size:12px; font-family:'IBM Plex Mono',monospace; text-align:right; color:var(--faint);">{{ row.time }}</span>
+              <div style="display:flex; justify-content:flex-end;"><dc-import name="Inspector" viewers="{{ row.viewers }}" label="Seen by 2" align="right" footer="This bid is visible only to its bidder and you." hint-size="120px,30px"></dc-import></div>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="margin-top:22px; display:flex; align-items:center; gap:20px; padding:20px 24px; background:var(--panel); border:1px solid var(--accent-line); border-radius:12px;">
+          <div>
+            <div style="font-size:11px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--faint); margin-bottom:5px;">Clears to</div>
+            <div style="display:flex; align-items:baseline; gap:12px;">
+              <span style="font-size:15px; font-weight:600;">{{ winnerName }}</span>
+              <span style="font-size:26px; font-weight:600; font-family:'IBM Plex Mono',monospace; font-variant-numeric:tabular-nums; color:var(--accent-text);">{{ winnerAmountFmt }}</span>
+            </div>
+          </div>
+          <div style="flex:1;"></div>
+          <div style="text-align:right; margin-right:6px;">
+            <div style="font-size:11.5px; color:var(--dim); display:flex; align-items:center; gap:7px; justify-content:flex-end;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="color:var(--accent-text)"><path d="M12 2a5 5 0 0 1 5 5v3H7V7a5 5 0 0 1 5-5z" opacity=".6"></path><rect x="5" y="10" width="14" height="10" rx="2"></rect></svg> Only the clearing party can clear</div>
+          </div>
+          <button type="button" onClick="{{ doClear }}" style="padding:15px 26px; border-radius:9px; border:none; background:var(--accent); color:#fff; font-family:'Space Grotesk',system-ui; font-size:14.5px; font-weight:700; cursor:pointer; white-space:nowrap; animation:pulseR 2.4s infinite;" style-hover="filter:brightness(1.08);">{{ clearLabel }} →</button>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ===== SETTLING (seller + bidder share) ===== -->
+    <sc-if value="{{ scrSettling }}" hint-placeholder-val="{{ false }}">
+      <div style="max-width:760px; margin:30px auto 0;">
+        <div style="text-align:center; margin-bottom:30px;">
+          <div style="display:inline-flex; align-items:center; gap:8px; padding:5px 13px; border-radius:999px; background:var(--accent-dim); color:var(--accent-text); font-size:12px; font-weight:600; margin-bottom:14px;"><span style="width:7px;height:7px;border-radius:50%;background:currentColor; animation:pulseR 1.4s infinite;"></span>Settling</div>
+          <h1 style="margin:0 0 6px; font-size:24px; font-weight:600;">Atomic delivery versus payment</h1>
+          <p style="margin:0; font-size:13.5px; color:var(--dim);">Asset and cash exchange in one indivisible step. Both legs settle, or neither does.</p>
+        </div>
+        <div style="position:relative; display:grid; grid-template-columns:1fr 130px 1fr; align-items:stretch; gap:0;">
+          <div style="animation:legL .9s ease both; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:22px 20px;">
+            <div style="font-size:10px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--faint); margin-bottom:10px;">Leg 1 · Asset</div>
+            <div style="font-size:15px; font-weight:600; margin-bottom:4px;">T-Bill block · {{ faceFmt }}</div>
+            <div style="font-size:12.5px; color:var(--dim);">Acme Treasury → {{ winnerName }}</div>
+          </div>
+          <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; position:relative;">
+            <div style="position:absolute; top:50%; left:-1px; right:-1px; height:2px; background:var(--accent-line); transform:translateY(-50%);"></div>
+            <div style="z-index:2; width:54px; height:54px; border-radius:14px; background:var(--accent); display:flex; align-items:center; justify-content:center; animation:lockSpin .7s ease both; box-shadow:0 0 0 6px var(--accent-dim);">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><path d="M12 3a4 4 0 0 1 4 4v3H8V7a4 4 0 0 1 4-4z" opacity=".7"></path><rect x="5.5" y="10" width="13" height="9.5" rx="2"></rect></svg>
+            </div>
+            <span style="z-index:2; font-size:9.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--accent-text); background:var(--bg); padding:0 6px;">Atomic</span>
+          </div>
+          <div style="animation:legR .9s ease both; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:22px 20px; text-align:right;">
+            <div style="font-size:10px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--faint); margin-bottom:10px;">Leg 2 · Cash</div>
+            <div style="font-size:15px; font-weight:600; margin-bottom:4px; font-family:'IBM Plex Mono',monospace;">{{ winnerAmountFmt }}</div>
+            <div style="font-size:12.5px; color:var(--dim);">{{ winnerName }} → Acme Treasury</div>
+          </div>
+        </div>
+        <div style="margin-top:18px; height:4px; border-radius:3px; background:var(--line); overflow:hidden;"><div style="height:100%; width:100%; background:var(--accent); transform-origin:left; animation:barGrow 2.5s linear both;"></div></div>
+        <div style="margin-top:10px; text-align:center; font-size:12px; color:var(--faint); font-family:'IBM Plex Mono',monospace;">Binding both legs · settlement {{ settleId }}</div>
+      </div>
+    </sc-if>
+
+    <!-- ===== SELLER · OUTCOME (settled) ===== -->
+    <sc-if value="{{ scrSellerOutcome }}" hint-placeholder-val="{{ false }}">
+      <div style="max-width:840px; margin:0 auto;">
+        <div style="display:flex; align-items:center; gap:11px; margin-bottom:6px;">
+          <span style="width:30px;height:30px;border-radius:8px;background:var(--good-dim);display:flex;align-items:center;justify-content:center;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--good)" stroke-width="2.6"><path d="M20 6L9 17l-5-5"></path></svg></span>
+          <h1 style="margin:0; font-size:24px; font-weight:600;">Settled · block cleared</h1>
+        </div>
+        <p style="margin:0 0 24px; font-size:13.5px; color:var(--dim);">The block was delivered and cash received in a single atomic settlement.</p>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+          <div style="background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:22px;">
+            <div style="font-size:10px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--faint); margin-bottom:8px;">{{ L.priceWord }}</div>
+            <div style="font-size:30px; font-weight:600; font-family:'IBM Plex Mono',monospace; color:var(--good-text); margin-bottom:14px;">{{ winnerAmountFmt }}</div>
+            <div style="margin-top:6px;"><dc-import name="Inspector" viewers="{{ clearedViewers }}" label="Seen by 2" denied="{{ clearedDenied }}" footer="The losing bidder never learns the cleared price." hint-size="130px,30px"></dc-import></div>
+          </div>
+          <div style="background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:22px; display:flex; flex-direction:column; gap:14px;">
+            <div style="display:flex; justify-content:space-between;"><span style="font-size:13px; color:var(--dim);">Cleared to</span><span style="font-size:14px; font-weight:600;">{{ winnerName }}</span></div>
+            <div style="display:flex; justify-content:space-between;"><span style="font-size:13px; color:var(--dim);">Cash received</span><span style="font-size:14px; font-weight:600; font-family:'IBM Plex Mono',monospace; color:var(--good-text);">+{{ winnerAmountFmt }}</span></div>
+            <div style="display:flex; justify-content:space-between;"><span style="font-size:13px; color:var(--dim);">Asset delivered</span><span style="font-size:14px; font-weight:600;">T-Bill block · {{ faceFmt }}</span></div>
+            <div style="display:flex; justify-content:space-between; padding-top:12px; border-top:1px solid var(--line);"><span style="font-size:13px; color:var(--dim);">Settlement</span><span style="font-size:13px; font-weight:600; font-family:'IBM Plex Mono',monospace; color:var(--good-text);">DvP · atomic ✓</span></div>
+          </div>
+        </div>
+        <div style="margin-top:16px; display:flex; align-items:center; gap:12px; padding:14px 18px; background:var(--panel2); border:1px solid var(--line); border-radius:10px;">
+          <span style="font-size:12px; font-family:'IBM Plex Mono',monospace; color:var(--faint);">{{ settleId }}</span>
+          <span style="font-size:12.5px; color:var(--dim);">Both legs bound — no partial transfer was ever possible.</span>
+          <button type="button" onClick="{{ resetDemo }}" style="margin-left:auto; padding:8px 14px; border-radius:7px; border:1px solid var(--line2); background:transparent; color:var(--dim); font-family:'Space Grotesk',system-ui; font-size:12px; font-weight:600; cursor:pointer;" style-hover="border-color:var(--accent-line);color:var(--text);">↺ Reset demo</button>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ===== ROLLBACK (seller + bidder share) ===== -->
+    <sc-if value="{{ scrRollback }}" hint-placeholder-val="{{ false }}">
+      <div style="max-width:760px; margin:10px auto 0;">
+        <div style="text-align:center; margin-bottom:26px;">
+          <div style="display:inline-flex; align-items:center; gap:8px; padding:5px 13px; border-radius:999px; background:var(--bad-dim); color:var(--bad-text); font-size:12px; font-weight:600; margin-bottom:14px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M3 12a9 9 0 1 0 3-6.7"></path><path d="M3 4v4h4"></path></svg> Rolled back</div>
+          <h1 style="margin:0 0 6px; font-size:24px; font-weight:600;">Settlement did not complete</h1>
+          <p style="margin:0 auto; max-width:460px; font-size:13.5px; color:var(--dim);">{{ rollbackReason }} Because settlement is atomic, neither leg moved.</p>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 130px 1fr; align-items:stretch;">
+          <div style="background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:22px 20px; opacity:.7;">
+            <div style="font-size:10px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--faint); margin-bottom:10px;">Leg 1 · Asset</div>
+            <div style="font-size:15px; font-weight:600; margin-bottom:4px; text-decoration:line-through; text-decoration-color:var(--bad);">T-Bill block · {{ faceFmt }}</div>
+            <div style="font-size:12px; color:var(--bad-text);">Not delivered · retained by seller</div>
+          </div>
+          <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; position:relative;">
+            <div style="position:absolute; top:50%; left:-1px; right:-1px; height:2px; background:var(--bad); transform:translateY(-50%); opacity:.5;"></div>
+            <div style="z-index:2; width:54px; height:54px; border-radius:14px; background:var(--bad-dim); border:1.5px solid var(--bad); display:flex; align-items:center; justify-content:center;">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--bad-text)" stroke-width="2.2"><path d="M18 6 6 18M6 6l12 12"></path></svg>
+            </div>
+            <span style="z-index:2; margin-top:9px; font-size:9.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--bad-text); background:var(--bg); padding:0 6px;">Neither leg</span>
+          </div>
+          <div style="background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:22px 20px; text-align:right; opacity:.7;">
+            <div style="font-size:10px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--faint); margin-bottom:10px;">Leg 2 · Cash</div>
+            <div style="font-size:15px; font-weight:600; margin-bottom:4px; font-family:'IBM Plex Mono',monospace; text-decoration:line-through; text-decoration-color:var(--bad);">{{ winnerAmountFmt }}</div>
+            <div style="font-size:12px; color:var(--bad-text);">Not transferred · escrow returned</div>
+          </div>
+        </div>
+        <div style="margin-top:20px; display:flex; align-items:center; gap:12px; padding:14px 18px; background:var(--panel2); border:1px solid var(--line); border-radius:10px;">
+          <span style="font-size:12.5px; color:var(--dim);">State is exactly as before the clear — controlled, not a crash.</span>
+          <sc-if value="{{ isSeller }}" hint-placeholder-val="{{ false }}">
+            <button type="button" onClick="{{ resetDemo }}" style="margin-left:auto; padding:8px 14px; border-radius:7px; border:1px solid var(--accent-line); background:var(--accent-dim); color:var(--accent-text); font-family:'Space Grotesk',system-ui; font-size:12px; font-weight:600; cursor:pointer;">Re-clear to next eligible bid</button>
+          </sc-if>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ===== BIDDER · AWAIT (draft) ===== -->
+    <sc-if value="{{ scrBidderAwait }}" hint-placeholder-val="{{ false }}">
+      <div style="max-width:520px; margin:60px auto 0; text-align:center;">
+        <div style="width:54px; height:54px; border-radius:14px; background:var(--panel); border:1px solid var(--line2); display:flex; align-items:center; justify-content:center; margin:0 auto 18px;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--faint)" stroke-width="1.8"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+        </div>
+        <h1 style="margin:0 0 8px; font-size:21px; font-weight:600;">No active auction</h1>
+        <p style="margin:0; font-size:13.5px; color:var(--dim);">Awaiting a listing from the clearing party. When the block opens, you'll be invited to submit a sealed bid.</p>
+      </div>
+    </sc-if>
+
+    <!-- ===== BIDDER · SUBMIT (open, not yet bid) ===== -->
+    <sc-if value="{{ scrBidderSubmit }}" hint-placeholder-val="{{ false }}">
+      <div style="animation:fadeUp .3s ease both;">
+        <div style="display:flex; align-items:baseline; gap:12px; margin-bottom:6px;">
+          <h1 style="margin:0; font-size:24px; font-weight:600;">Submit sealed {{ bidVerbLower }}</h1>
+          <span style="font-size:13px; color:var(--dim);">as {{ myName }}</span>
+        </div>
+        <p style="margin:0 0 24px; font-size:13.5px; color:var(--dim);">Your bid is sealed the moment you submit. Visible only to you and the clearing party — no other counterparty can ever see it.</p>
+        <div style="display:grid; grid-template-columns:1fr 340px; gap:22px; align-items:start;">
+          <div style="background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:24px;">
+            <div style="margin-bottom:20px;">
+              <label style="display:block; font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--faint); margin-bottom:9px;">Your {{ bidVerbLower }} (total consideration)</label>
+              <div style="display:flex; align-items:center; gap:2px; background:var(--bg); border:1px solid var(--accent-line); border-radius:9px; padding:0 16px;">
+                <span style="font-size:22px; font-weight:600; color:var(--dim); font-family:'IBM Plex Mono',monospace;">$</span>
+                <input type="text" defaultValue="{{ bidFieldValue }}" style="flex:1; background:transparent; border:none; outline:none; color:var(--text); font-family:'IBM Plex Mono',monospace; font-size:22px; font-weight:600; padding:15px 6px;">
+              </div>
+              <div style="display:flex; justify-content:space-between; margin-top:8px;">
+                <span style="font-size:11.5px; color:var(--faint);">{{ L.reserveWord }} {{ reserveFmt }}</span>
+                <span style="font-size:11.5px; color:var(--faint);">Face {{ faceFmt }}</span>
+              </div>
+            </div>
+            <div style="margin-bottom:22px;">
+              <label style="display:block; font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--faint); margin-bottom:9px;">Cash escrowed</label>
+              <div style="display:flex; align-items:center; gap:12px; background:var(--panel2); border:1px solid var(--line2); border-radius:9px; padding:14px 16px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-text)" stroke-width="2.2"><path d="M12 3a4 4 0 0 1 4 4v3H8V7a4 4 0 0 1 4-4z" opacity=".6"></path><rect x="5.5" y="10" width="13" height="9.5" rx="2"></rect></svg>
+                <span style="font-size:13.5px; color:var(--dim);">Escrowed in full for the bid amount — released to you automatically if you do not win.</span>
+              </div>
+            </div>
+            <button type="button" onClick="{{ submit }}" style="width:100%; padding:15px; border-radius:9px; border:none; background:var(--accent); color:#fff; font-family:'Space Grotesk',system-ui; font-size:14.5px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:9px;" style-hover="filter:brightness(1.08);">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><path d="M12 3a4 4 0 0 1 4 4v3H8V7a4 4 0 0 1 4-4z" opacity=".7"></path><rect x="5.5" y="10" width="13" height="9.5" rx="2"></rect></svg>
+              Seal &amp; submit bid
+            </button>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:16px;">
+            <div style="background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:18px;">
+              <div style="font-size:10px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--faint); margin-bottom:14px;">Competition</div>
+              <div style="display:flex; align-items:center; gap:13px; margin-bottom:6px;">
+                <span style="font-size:28px; font-weight:600; font-family:'IBM Plex Mono',monospace; color:var(--text);">2</span>
+                <span style="font-size:13px; color:var(--dim); line-height:1.35;">counterparties<br>invited to bid</span>
+              </div>
+              <p style="margin:12px 0 0; font-size:12px; color:var(--faint); line-height:1.5;">Their count is shown to confirm a competitive process. Their identities and amounts are never disclosed to you.</p>
+            </div>
+            <div style="background:var(--accent-dim); border:1px solid var(--accent-line); border-radius:12px; padding:16px 18px;">
+              <div style="display:flex; align-items:center; gap:9px; margin-bottom:8px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--accent-text)" stroke-width="2.2"><path d="M12 3a4 4 0 0 1 4 4v3H8V7a4 4 0 0 1 4-4z" opacity=".7"></path><rect x="5.5" y="10" width="13" height="9.5" rx="2"></rect></svg><span style="font-size:12.5px; font-weight:600; color:var(--accent-text);">Sealed on submission</span></div>
+              <p style="margin:0; font-size:12px; color:var(--dim); line-height:1.5;">Visible only to you and Acme Treasury (clearing party). Enforced by the network, not a middleman.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ===== BIDDER · SEALED (the privacy frame) ===== -->
+    <sc-if value="{{ scrBidderSealed }}" hint-placeholder-val="{{ false }}">
+      <div style="animation:fadeUp .3s ease both;">
+        <div style="display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:22px;">
+          <div>
+            <h1 style="margin:0 0 4px; font-size:24px; font-weight:600;">Your sealed position</h1>
+            <p style="margin:0; font-size:13.5px; color:var(--dim);">Viewing as {{ myName }}. You see your own bid in full and nothing of anyone else's.</p>
+          </div>
+          <button type="button" onClick="{{ openCompare }}" style="display:flex; align-items:center; gap:8px; padding:10px 15px; border-radius:8px; border:1px solid var(--accent-line); background:var(--accent-dim); color:var(--accent-text); font-family:'Space Grotesk',system-ui; font-size:12.5px; font-weight:600; cursor:pointer;" style-hover="background:var(--accent);color:#fff;">Open split view →</button>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+          <!-- own bid -->
+          <sc-if value="{{ hasMyBid }}" hint-placeholder-val="{{ true }}">
+            <div style="background:var(--panel); border:1.5px solid var(--accent-line); border-radius:12px; padding:22px; position:relative;">
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+                <span style="font-size:10px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--accent-text);">Your bid</span>
+                <span style="display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:600; color:var(--good-text); background:var(--good-dim); padding:3px 9px; border-radius:999px;"><span style="width:6px;height:6px;border-radius:50%;background:currentColor;"></span>Sealed · accepted</span>
+              </div>
+              <div style="font-size:34px; font-weight:600; font-family:'IBM Plex Mono',monospace; font-variant-numeric:tabular-nums; letter-spacing:-.01em; margin-bottom:18px;">{{ myBidFmt }}</div>
+              <div style="display:flex; flex-direction:column; gap:11px; padding-top:16px; border-top:1px solid var(--line);">
+                <div style="display:flex; justify-content:space-between;"><span style="font-size:12.5px; color:var(--dim);">Cash escrowed</span><span style="font-size:13px; font-weight:600; font-family:'IBM Plex Mono',monospace;">{{ myEscrowFmt }}</span></div>
+                <div style="display:flex; justify-content:space-between;"><span style="font-size:12.5px; color:var(--dim);">Sealed at</span><span style="font-size:13px; font-family:'IBM Plex Mono',monospace; color:var(--dim);">{{ myBidTime }} ET</span></div>
+              </div>
+              <div style="margin-top:16px;"><dc-import name="Inspector" viewers="{{ myBidViewers }}" label="Who can see this bid" denied="Other invited counterparties" footer="Sealed on submission. Visible only to you and the clearing party." hint-size="160px,30px"></dc-import></div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ noMyBid }}" hint-placeholder-val="{{ false }}">
+            <div style="background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:22px; display:flex; flex-direction:column; justify-content:center; gap:8px;">
+              <span style="font-size:10px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--faint);">Your bid</span>
+              <span style="font-size:16px; font-weight:600; color:var(--dim);">No bid submitted</span>
+              <span style="font-size:12.5px; color:var(--faint);">You were invited but did not submit a sealed bid for this block.</span>
+            </div>
+          </sc-if>
+
+          <!-- everyone else: sealed -->
+          <div style="background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:22px; position:relative; overflow:hidden;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+              <span style="font-size:10px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--faint);">Other counterparties</span>
+              <span style="font-size:11px; color:var(--faint);">1 other invited</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:16px; padding:20px; border-radius:10px; background:var(--hatch); border:1px dashed var(--line2);">
+              <div style="width:42px; height:42px; border-radius:10px; background:var(--panel); border:1px solid var(--line2); display:flex; align-items:center; justify-content:center; flex:none;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--faint)" stroke-width="2"><path d="M12 3a4 4 0 0 1 4 4v3H8V7a4 4 0 0 1 4-4z" opacity=".6"></path><rect x="5.5" y="10" width="13" height="9.5" rx="2"></rect></svg>
+              </div>
+              <div>
+                <div style="font-size:14px; font-weight:600; color:var(--dim); letter-spacing:.06em; font-family:'IBM Plex Mono',monospace;">•••••••••••</div>
+                <div style="font-size:12px; color:var(--faint); margin-top:3px;">Not disclosed to you</div>
+              </div>
+            </div>
+            <p style="margin:16px 0 0; font-size:12.5px; color:var(--faint); line-height:1.5;">Their bid and identity are sealed by the network. This is by design — not missing data, not pending.</p>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ===== BIDDER · LOCKED ===== -->
+    <sc-if value="{{ scrBidderLocked }}" hint-placeholder-val="{{ false }}">
+      <div style="max-width:560px; margin:40px auto 0; text-align:center;">
+        <div style="width:54px; height:54px; border-radius:14px; background:var(--warn-dim); display:flex; align-items:center; justify-content:center; margin:0 auto 18px;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--warn)" stroke-width="2"><path d="M12 3a4 4 0 0 1 4 4v3H8V7a4 4 0 0 1 4-4z" opacity=".7"></path><rect x="5.5" y="10" width="13" height="9.5" rx="2"></rect></svg>
+        </div>
+        <h1 style="margin:0 0 8px; font-size:21px; font-weight:600;">Bidding closed</h1>
+        <p style="margin:0 0 22px; font-size:13.5px; color:var(--dim);">The deadline has passed. Awaiting clearing by Acme Treasury. Your sealed bid stands.</p>
+        <sc-if value="{{ hasMyBid }}" hint-placeholder-val="{{ false }}">
+          <div style="display:inline-flex; align-items:center; gap:14px; padding:14px 20px; background:var(--panel); border:1px solid var(--line); border-radius:11px;">
+            <span style="font-size:12.5px; color:var(--dim);">Your sealed bid</span>
+            <span style="font-size:17px; font-weight:600; font-family:'IBM Plex Mono',monospace;">{{ myBidFmt }}</span>
+          </div>
+        </sc-if>
+      </div>
+    </sc-if>
+
+    <!-- ===== BIDDER · OUTCOME (settled) ===== -->
+    <sc-if value="{{ scrBidderOutcome }}" hint-placeholder-val="{{ false }}">
+      <div style="max-width:680px; margin:10px auto 0;">
+        <sc-if value="{{ myIsWinner }}" hint-placeholder-val="{{ false }}">
+          <div style="text-align:center;">
+            <div style="width:52px; height:52px; border-radius:14px; background:var(--good-dim); display:flex; align-items:center; justify-content:center; margin:0 auto 16px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--good)" stroke-width="2.6"><path d="M20 6L9 17l-5-5"></path></svg></div>
+            <h1 style="margin:0 0 6px; font-size:24px; font-weight:600;">You won the block</h1>
+            <p style="margin:0 0 26px; font-size:13.5px; color:var(--dim);">The asset has been delivered to you in exchange for the price you paid — settled atomically.</p>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; text-align:left;">
+              <div style="background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:22px;">
+                <div style="font-size:10px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--faint); margin-bottom:8px;">You paid</div>
+                <div style="font-size:28px; font-weight:600; font-family:'IBM Plex Mono',monospace; color:var(--good-text);">{{ myBidFmt }}</div>
+              </div>
+              <div style="background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:22px;">
+                <div style="font-size:10px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--faint); margin-bottom:8px;">Asset received</div>
+                <div style="font-size:16px; font-weight:600; margin-bottom:6px;">T-Bill block</div>
+                <div style="font-size:13px; color:var(--dim); font-family:'IBM Plex Mono',monospace;">{{ faceFmt }} face</div>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+        <sc-if value="{{ myIsLoser }}" hint-placeholder-val="{{ false }}">
+          <div style="text-align:center;">
+            <div style="width:52px; height:52px; border-radius:14px; background:var(--panel); border:1px solid var(--line2); display:flex; align-items:center; justify-content:center; margin:0 auto 16px;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--dim)" stroke-width="2"><path d="M5 12h14"></path></svg></div>
+            <h1 style="margin:0 0 6px; font-size:24px; font-weight:600;">Not awarded</h1>
+            <p style="margin:0 0 26px; font-size:13.5px; color:var(--dim);">This block cleared to another counterparty. Your escrow has been returned in full.</p>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; text-align:left;">
+              <div style="background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:22px;">
+                <div style="font-size:10px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--faint); margin-bottom:8px;">Escrow returned</div>
+                <div style="font-size:28px; font-weight:600; font-family:'IBM Plex Mono',monospace; color:var(--text);">{{ myEscrowFmt }}</div>
+                <div style="margin-top:6px; font-size:12px; color:var(--good-text);">Released in full ✓</div>
+              </div>
+              <div style="background:var(--hatch); border:1px dashed var(--line2); border-radius:12px; padding:22px; display:flex; flex-direction:column; justify-content:center;">
+                <div style="font-size:10px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--faint); margin-bottom:10px;">Winning price</div>
+                <div style="display:flex; align-items:center; gap:11px;">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--faint)" stroke-width="2" style="flex:none;"><path d="M12 3a4 4 0 0 1 4 4v3H8V7a4 4 0 0 1 4-4z" opacity=".6"></path><rect x="5.5" y="10" width="13" height="9.5" rx="2"></rect></svg>
+                  <span style="font-size:16px; font-weight:600; color:var(--dim); letter-spacing:.08em; font-family:'IBM Plex Mono',monospace;">••••••••</span>
+                </div>
+                <div style="margin-top:10px; font-size:12px; color:var(--faint); line-height:1.45;">Not disclosed to you. The cleared price is need-to-know between the seller and the winner.</div>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+        <sc-if value="{{ noMyBid }}" hint-placeholder-val="{{ false }}">
+          <div style="text-align:center; margin-top:30px;">
+            <h1 style="margin:0 0 6px; font-size:22px; font-weight:600;">No bid on this block</h1>
+            <p style="margin:0; font-size:13.5px; color:var(--dim);">You did not submit a bid, so there is no outcome to report. The cleared price is not disclosed to you.</p>
+          </div>
+        </sc-if>
+      </div>
+    </sc-if>
+
+  </main>
+
+  <!-- ============ DEMO TIMELINE BAR ============ -->
+  <div style="position:fixed; bottom:0; left:0; right:0; z-index:45; display:flex; align-items:center; gap:22px; padding:0 22px; height:64px; background:var(--panel); border-top:1px solid var(--line); box-shadow:0 -4px 20px rgba(0,0,0,.18);">
+    <span style="font-size:9.5px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--faint); white-space:nowrap;">Demo flow</span>
+    <div style="display:flex; align-items:center; gap:0; flex:1;">
+      <sc-for list="{{ tlNodes }}" as="node" hint-placeholder-count="6">
+        <sc-if value="{{ node.showConn }}" hint-placeholder-val="{{ true }}"><div style="{{ node.connStyle }}"></div></sc-if>
+        <button type="button" onClick="{{ node.go }}" style="display:flex; align-items:center; gap:8px; background:transparent; border:none; cursor:pointer; padding:6px 4px; white-space:nowrap;">
+          <span style="{{ node.dotStyle }}"></span>
+          <span style="{{ node.labelStyle }}">{{ node.label }}</span>
+        </button>
+      </sc-for>
+    </div>
+    <div style="display:flex; align-items:center; gap:9px;">
+      <span style="font-size:9.5px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--faint); white-space:nowrap;">Scenario</span>
+      <sc-for list="{{ scnNodes }}" as="s" hint-placeholder-count="4">
+        <button type="button" onClick="{{ s.go }}" style="{{ s.style }}">{{ s.label }}</button>
+      </sc-for>
+    </div>
+  </div>
+
+  <!-- ============ HERO · COMPARISON OVERLAY ============ -->
+  <sc-if value="{{ compare }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed; inset:0; z-index:90; background:var(--scrim); display:flex; align-items:center; justify-content:center; padding:34px;">
+      <div style="width:100%; max-width:1080px; background:var(--bg); border:1px solid var(--line2); border-radius:18px; box-shadow:0 30px 90px rgba(0,0,0,.5); overflow:hidden;">
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:18px 26px; border-bottom:1px solid var(--line);">
+          <div style="display:flex; align-items:center; gap:11px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" style="color:var(--accent);"><circle cx="12" cy="12" r="9.2" fill="none" stroke="currentColor" stroke-width="1.8"></circle><rect x="3.4" y="10" width="17.2" height="4" rx="1.2" fill="currentColor"></rect></svg>
+            <span style="font-size:13px; font-weight:600; letter-spacing:.04em;">Confidentiality · side by side</span>
+          </div>
+          <button type="button" onClick="{{ closeCompare }}" style="width:32px; height:32px; border-radius:8px; border:1px solid var(--line2); background:transparent; color:var(--dim); cursor:pointer; display:flex; align-items:center; justify-content:center;" style-hover="color:var(--text);border-color:var(--accent-line);"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6 6 18M6 6l12 12"></path></svg></button>
+        </div>
+
+        <div style="position:relative; display:grid; grid-template-columns:1fr 1fr;">
+          <!-- AS MERIDIAN -->
+          <div style="padding:30px 30px 34px; border-right:1px solid var(--line);">
+            <div style="display:flex; align-items:center; gap:9px; margin-bottom:22px;">
+              <span style="width:9px;height:9px;border-radius:50%;background:var(--accent);"></span>
+              <span style="font-size:11px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--dim);">As {{ compA.name }} sees it</span>
+            </div>
+            <div style="margin-bottom:18px;">
+              <div style="font-size:10px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--accent-text); margin-bottom:9px;">Their own bid</div>
+              <sc-if value="{{ compA.has }}" hint-placeholder-val="{{ true }}">
+                <div style="font-size:30px; font-weight:600; font-family:'IBM Plex Mono',monospace; font-variant-numeric:tabular-nums; color:var(--text);">{{ compA.amount }}</div>
+                <div style="font-size:11.5px; color:var(--faint); margin-top:4px; font-family:'IBM Plex Mono',monospace;">Sealed {{ compA.time }} ET · visible to them + clearing party</div>
+              </sc-if>
+              <sc-if value="{{ compA.none }}" hint-placeholder-val="{{ false }}"><div style="font-size:18px; font-weight:600; color:var(--faint);">No bid yet</div></sc-if>
+            </div>
+            <div>
+              <div style="font-size:10px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--faint); margin-bottom:9px;">The other side</div>
+              <div style="display:flex; align-items:center; gap:14px; padding:18px; border-radius:10px; background:var(--hatch); border:1px dashed var(--line2);">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="var(--faint)" stroke-width="2" style="flex:none;"><path d="M12 3a4 4 0 0 1 4 4v3H8V7a4 4 0 0 1 4-4z" opacity=".6"></path><rect x="5.5" y="10" width="13" height="9.5" rx="2"></rect></svg>
+                <div>
+                  <div style="font-size:15px; font-weight:600; color:var(--dim); letter-spacing:.08em; font-family:'IBM Plex Mono',monospace;">•••••••••</div>
+                  <div style="font-size:11.5px; color:var(--faint); margin-top:2px;">Sealed · not disclosed to you</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- AS HALCYON -->
+          <div style="padding:30px 30px 34px;">
+            <div style="display:flex; align-items:center; gap:9px; margin-bottom:22px;">
+              <span style="width:9px;height:9px;border-radius:50%;background:var(--accent);"></span>
+              <span style="font-size:11px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--dim);">As {{ compB.name }} sees it</span>
+            </div>
+            <div style="margin-bottom:18px;">
+              <div style="font-size:10px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--accent-text); margin-bottom:9px;">Their own bid</div>
+              <sc-if value="{{ compB.has }}" hint-placeholder-val="{{ true }}">
+                <div style="font-size:30px; font-weight:600; font-family:'IBM Plex Mono',monospace; font-variant-numeric:tabular-nums; color:var(--text);">{{ compB.amount }}</div>
+                <div style="font-size:11.5px; color:var(--faint); margin-top:4px; font-family:'IBM Plex Mono',monospace;">Sealed {{ compB.time }} ET · visible to them + clearing party</div>
+              </sc-if>
+              <sc-if value="{{ compB.none }}" hint-placeholder-val="{{ false }}"><div style="font-size:18px; font-weight:600; color:var(--faint);">No bid submitted</div></sc-if>
+            </div>
+            <div>
+              <div style="font-size:10px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--faint); margin-bottom:9px;">The other side</div>
+              <div style="display:flex; align-items:center; gap:14px; padding:18px; border-radius:10px; background:var(--hatch); border:1px dashed var(--line2);">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="var(--faint)" stroke-width="2" style="flex:none;"><path d="M12 3a4 4 0 0 1 4 4v3H8V7a4 4 0 0 1 4-4z" opacity=".6"></path><rect x="5.5" y="10" width="13" height="9.5" rx="2"></rect></svg>
+                <div>
+                  <div style="font-size:15px; font-weight:600; color:var(--dim); letter-spacing:.08em; font-family:'IBM Plex Mono',monospace;">•••••••••</div>
+                  <div style="font-size:11.5px; color:var(--faint); margin-top:2px;">Sealed · not disclosed to you</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- center divider badge -->
+          <div style="position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); z-index:3; width:64px; height:64px; border-radius:50%; background:var(--bg); border:1.5px solid var(--line2); display:flex; align-items:center; justify-content:center;">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--faint)" stroke-width="1.8"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"></path><circle cx="12" cy="12" r="3"></circle><path d="M3 3l18 18" stroke="var(--bad)" stroke-width="2"></path></svg>
+          </div>
+        </div>
+
+        <div style="display:flex; align-items:center; gap:14px; padding:20px 30px; background:var(--panel); border-top:1px solid var(--line);">
+          <div style="font-size:16px; font-weight:600; letter-spacing:-.01em;">Neither side can see the other's bid.</div>
+          <div style="flex:1;"></div>
+          <div style="font-size:12px; color:var(--dim); max-width:380px; text-align:right; line-height:1.45;">Both bids exist and are sealed in escrow. Each party sees only its own — enforced by Canton sub-transaction privacy, not a trusted intermediary.</div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1180,&quot;height&quot;:820}}">
+class Component extends DCLogic {
+  state = {
+    theme: 'dark', framing: 'otc', viewAs: 'seller', phase: 'draft',
+    scenario: 'normal', submitted: { A: false, B: false }, compare: false
+  };
+  PARTIES = { seller: 'Acme Treasury', A: 'Meridian Capital', B: 'Halcyon Asset Mgmt' };
+
+  bidData() {
+    const s = this.state.scenario;
+    if (s === 'single') return { A: { amount: 24812500, escrow: 24812500, t: '14:02:11' }, B: null };
+    if (s === 'tie') return { A: { amount: 24800000, escrow: 24800000, t: '14:01:09' }, B: { amount: 24800000, escrow: 24800000, t: '14:03:44' } };
+    if (s === 'rollback') return { A: { amount: 24812500, escrow: 24650000, t: '14:02:11' }, B: { amount: 24790000, escrow: 24790000, t: '14:03:44' } };
+    return { A: { amount: 24812500, escrow: 24812500, t: '14:02:11' }, B: { amount: 24790000, escrow: 24790000, t: '14:03:44' } };
+  }
+  bids() {
+    const sc = this.bidData(), ph = this.state.phase, sub = this.state.submitted;
+    if (ph === 'draft') return { A: null, B: null };
+    if (ph === 'open') return { A: sub.A ? sc.A : null, B: sub.B ? sc.B : null };
+    return sc;
+  }
+  ranked() {
+    const b = this.bids(), arr = [];
+    if (b.A) arr.push({ id: 'A', ...b.A });
+    if (b.B) arr.push({ id: 'B', ...b.B });
+    const otc = this.state.framing === 'otc';
+    arr.sort((x, y) => otc ? y.amount - x.amount : x.amount - y.amount);
+    let tie = false;
+    if (arr.length > 1 && arr[0].amount === arr[1].amount) { tie = true; arr.sort((x, y) => x.t < y.t ? -1 : 1); }
+    return { arr, tie, winnerId: arr.length ? arr[0].id : null };
+  }
+  fmt(n) { return '$' + Number(n).toLocaleString('en-US'); }
+
+  goPhase(k) {
+    if (k === 'live') { this.setState({ phase: 'live', submitted: { A: true, B: true } }); return; }
+    this.setState({ phase: k });
+  }
+  goNode(k) {
+    if (k === 'cleared') { this.doClear(); return; }
+    if (k === 'settled') {
+      const roll = this.state.scenario === 'rollback';
+      this.setState({ phase: roll ? 'rollback' : 'settled' });
+      return;
+    }
+    this.goPhase(k);
+  }
+  doClear() {
+    this.setState({ phase: 'cleared' });
+    clearTimeout(this._t);
+    this._t = setTimeout(() => {
+      const r = this.ranked(), b = this.bids();
+      const wb = r.winnerId ? b[r.winnerId] : null;
+      const fail = !!(wb && wb.escrow < wb.amount);
+      this.setState({ phase: fail ? 'rollback' : 'settled' });
+    }, 2700);
+  }
+  submitBid() {
+    const id = this.state.viewAs === 'bidderA' ? 'A' : 'B';
+    this.setState(s => ({ submitted: { ...s.submitted, [id]: true } }));
+  }
+  setScenario(k) {
+    clearTimeout(this._t);
+    const ph = this.state.phase;
+    const keep = (ph === 'draft' || ph === 'open');
+    this.setState({ scenario: k, phase: keep ? ph : 'live', submitted: keep ? this.state.submitted : { A: true, B: true } });
+  }
+  reset() { clearTimeout(this._t); this.setState({ phase: 'draft', submitted: { A: false, B: false }, compare: false }); }
+  componentWillUnmount() { clearTimeout(this._t); }
+
+  renderVals() {
+    const S = this.state, otc = S.framing === 'otc', va = S.viewAs, ph = S.phase, P = this.PARTIES;
+    const fmt = (n) => this.fmt(n);
+    const youSeller = va === 'seller', youA = va === 'bidderA', youB = va === 'bidderB';
+    const isSeller = youSeller, myId = youA ? 'A' : youB ? 'B' : null;
+
+    const L = otc ? {
+      sellerRole: 'Seller', bidderWord: 'Bidder', listing: 'block listing', invite: 'Invited counterparties',
+      reserveWord: 'Reserve', priceWord: 'Cleared price', clearWord: 'Clear'
+    } : {
+      sellerRole: 'Buyer', bidderWord: 'Supplier', listing: 'RFQ', invite: 'Invited suppliers',
+      reserveWord: 'Ceiling', priceWord: 'Awarded price', clearWord: 'Award'
+    };
+    const winRuleLine = otc ? 'Highest sealed bid clears' : 'Lowest sealed quote wins';
+
+    const bids = this.bids(), r = this.ranked();
+    const winnerId = r.winnerId, loserId = winnerId ? (winnerId === 'A' ? 'B' : 'A') : null;
+    const winnerName = winnerId ? P[winnerId] : '', loserName = loserId ? P[loserId] : '';
+    const wb = winnerId ? bids[winnerId] : null;
+    const winnerAmountFmt = wb ? fmt(wb.amount) : '—';
+    const myBid = myId ? bids[myId] : null, hasMyBid = !!myBid;
+    const isSingle = S.scenario === 'single';
+
+    const sellerV = { name: P.seller, role: 'clearing party', accent: true, you: youSeller };
+    let termsViewers;
+    if (youSeller) termsViewers = [sellerV, { name: P.A, role: 'invited' }, { name: P.B, role: 'invited' }];
+    else if (youA) termsViewers = [sellerV, { name: P.A, role: 'invited', you: true }, { name: '1 other counterparty', role: 'invited' }];
+    else termsViewers = [sellerV, { name: P.B, role: 'invited', you: true }, { name: '1 other counterparty', role: 'invited' }];
+    const termsLabel = 'Seen by ' + termsViewers.length;
+
+    const myBidViewers = myId ? [{ name: P[myId], role: 'bidder', you: true }, sellerV] : [];
+
+    // clearing rows
+    const rankRows = r.arr.map((x, i) => {
+      const best = i === 0 && !r.tie;
+      const short = x.escrow < x.amount;
+      return {
+        rank: i + 1, name: P[x.id], amount: fmt(x.amount), escrow: fmt(x.escrow), time: x.t + ' ET',
+        best, short, viewers: [{ name: P[x.id], role: 'bidder' }, sellerV],
+        rankColor: best ? 'var(--accent-text)' : 'var(--faint)',
+        amtColor: best ? 'var(--accent-text)' : 'var(--text)',
+        escColor: short ? 'var(--bad-text)' : 'var(--dim)',
+        rowStyle: {
+          display: 'grid', gridTemplateColumns: '44px 1fr 200px 160px 120px 130px', alignItems: 'center',
+          padding: '17px 20px', borderTop: i === 0 ? 'none' : '1px solid var(--line)',
+          background: best ? 'var(--accent-dim)' : 'transparent'
+        }
+      };
+    });
+    const clearLabel = L.clearWord + ' to best bid · ' + winnerAmountFmt;
+
+    // cleared price inspector (POV)
+    let clearedViewers = [], clearedDenied = '';
+    if (youSeller) { clearedViewers = [sellerV, { name: winnerName, role: 'winner', accent: true }]; clearedDenied = loserName; }
+    else if (myId && myId === winnerId) { clearedViewers = [{ name: winnerName, role: 'winner', you: true, accent: true }, sellerV]; clearedDenied = 'Other counterparties'; }
+
+    // monitor rows
+    const respList = [
+      { code: 'MER', name: P.A, deskLine: 'Treasury desk · MER', in: !!bids.A, t: bids.A ? bids.A.t + ' ET' : '', viewers: [{ name: P.A, role: 'bidder' }, sellerV] },
+      { code: 'HAL', name: P.B, deskLine: 'Treasury desk · HAL', in: !!bids.B, t: bids.B ? bids.B.t + ' ET' : '', viewers: [{ name: P.B, role: 'bidder' }, sellerV] }
+    ].map(x => ({ ...x, awaiting: !x.in }));
+    const respCount = (bids.A ? 1 : 0) + (bids.B ? 1 : 0);
+
+    // compare
+    const compA = { name: P.A, has: !!bids.A, none: !bids.A, amount: bids.A ? fmt(bids.A.amount) : '', time: bids.A ? bids.A.t : '' };
+    const compB = { name: P.B, has: !!bids.B, none: !bids.B, amount: bids.B ? fmt(bids.B.amount) : '', time: bids.B ? bids.B.t : '' };
+
+    // screen routing
+    const bidder = !youSeller;
+    const scrSellerDraft = youSeller && ph === 'draft';
+    const scrSellerMonitor = youSeller && (ph === 'open' || ph === 'live');
+    const scrSellerClear = youSeller && ph === 'locked';
+    const scrSellerOutcome = youSeller && ph === 'settled';
+    const scrBidderAwait = bidder && ph === 'draft';
+    const scrBidderSubmit = bidder && ph === 'open' && !myBid;
+    const scrBidderSealed = bidder && ((ph === 'open' && !!myBid) || ph === 'live');
+    const scrBidderLocked = bidder && ph === 'locked';
+    const scrBidderOutcome = bidder && ph === 'settled';
+    const scrSettling = ph === 'cleared';
+    const scrRollback = ph === 'rollback';
+
+    const myIsWinner = !!(myId && myId === winnerId && hasMyBid);
+    const myIsLoser = !!(bidder && hasMyBid && myId !== winnerId);
+    const noMyBid = bidder && !hasMyBid;
+
+    let rollbackReason = 'The winning bid could not be funded in full.';
+    if (wb && wb.escrow < wb.amount) rollbackReason = winnerName + "'s escrow (" + fmt(wb.escrow) + ') fell short of its bid (' + winnerAmountFmt + ').';
+
+    // ---- control styles ----
+    const seg = (on) => ({
+      display: 'flex', alignItems: 'center', gap: '7px', padding: '7px 14px', borderRadius: '7px',
+      border: '1px solid ' + (on ? 'var(--accent)' : 'transparent'), background: on ? 'var(--accent)' : 'transparent',
+      color: on ? '#fff' : 'var(--dim)', fontFamily: "'Space Grotesk',system-ui", fontSize: '12.5px', fontWeight: 600,
+      cursor: 'pointer', whiteSpace: 'nowrap', letterSpacing: '.01em'
+    });
+
+    // timeline
+    const order = ['draft', 'open', 'live', 'locked', 'cleared', 'settled'];
+    let curIdx = order.indexOf(ph);
+    if (ph === 'rollback') curIdx = 5;
+    const defs = [['draft', 'List'], ['open', 'Open'], ['live', 'Bids in'], ['locked', 'Closed'], ['cleared', 'Clear'], ['settled', 'Settle']];
+    const tlNodes = defs.map((d, i) => {
+      const k = d[0], done = i < curIdx, active = i === curIdx;
+      const fail = ph === 'rollback' && k === 'settled';
+      const fillCol = fail ? 'var(--bad)' : 'var(--accent)';
+      return {
+        k, label: d[1], showConn: i > 0,
+        connStyle: { height: '2px', flex: '1', minWidth: '14px', maxWidth: '46px', background: i <= curIdx ? 'var(--accent-line)' : 'var(--line2)' },
+        dotStyle: {
+          width: active ? '11px' : '9px', height: active ? '11px' : '9px', borderRadius: '50%', flex: 'none', display: 'block',
+          background: (done || active) ? fillCol : 'transparent', border: (done || active) ? 'none' : '1.5px solid var(--faint)',
+          boxShadow: active ? '0 0 0 4px ' + (fail ? 'var(--bad-dim)' : 'var(--accent-dim)') : 'none'
+        },
+        labelStyle: { fontSize: '11px', fontWeight: active ? 700 : 500, whiteSpace: 'nowrap', letterSpacing: '.02em', color: active ? (fail ? 'var(--bad-text)' : 'var(--text)') : done ? 'var(--dim)' : 'var(--faint)' },
+        go: () => this.goNode(k)
+      };
+    });
+
+    const scnDefs = [['normal', 'Two bids'], ['single', 'Single bidder'], ['tie', 'Tie'], ['rollback', 'Short escrow']];
+    const scnNodes = scnDefs.map(d => {
+      const on = S.scenario === d[0];
+      return {
+        k: d[0], label: d[1], go: () => this.setScenario(d[0]),
+        style: { padding: '5px 11px', borderRadius: '6px', border: '1px solid ' + (on ? 'var(--accent-line)' : 'var(--line2)'), background: on ? 'var(--accent-dim)' : 'transparent', color: on ? 'var(--accent-text)' : 'var(--dim)', fontFamily: "'Space Grotesk',system-ui", fontSize: '11px', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }
+      };
+    });
+
+    const stMap = {
+      draft: { t: 'Draft listing', c: 'var(--faint)', bg: 'var(--line)' },
+      open: { t: 'Bidding open', c: 'var(--accent-text)', bg: 'var(--accent-dim)' },
+      live: { t: 'Bids sealed', c: 'var(--accent-text)', bg: 'var(--accent-dim)' },
+      locked: { t: 'Closed — ready to clear', c: 'var(--warn)', bg: 'var(--warn-dim)' },
+      cleared: { t: 'Clearing…', c: 'var(--accent-text)', bg: 'var(--accent-dim)' },
+      settled: { t: 'Settled', c: 'var(--good-text)', bg: 'var(--good-dim)' },
+      rollback: { t: 'Rolled back — nothing moved', c: 'var(--bad-text)', bg: 'var(--bad-dim)' }
+    };
+    const st = stMap[ph] || stMap.draft;
+    const statusStyle = { display: 'inline-flex', alignItems: 'center', gap: '7px', padding: '4px 11px', borderRadius: '999px', background: st.bg, color: st.c, fontSize: '11.5px', fontWeight: 600, letterSpacing: '.02em', whiteSpace: 'nowrap' };
+
+    return {
+      theme: S.theme, L, P, framingLabel: otc ? 'OTC block · sealed bid' : 'Procurement · reverse auction',
+      themeLabel: S.theme === 'dark' ? 'Dark' : 'Light',
+      winRuleLine, reserveWordLower: L.reserveWord.toLowerCase(), bidVerbLower: otc ? 'bid' : 'quote',
+      faceFmt: fmt(25000000), reserveFmt: fmt(24600000),
+      termsViewers, termsLabel,
+      vSellerStyle: seg(youSeller), vAStyle: seg(youA), vBStyle: seg(youB),
+      // handlers
+      viewSeller: () => this.setState({ viewAs: 'seller' }), viewA: () => this.setState({ viewAs: 'bidderA' }), viewB: () => this.setState({ viewAs: 'bidderB' }),
+      themeToggle: () => this.setState(s => ({ theme: s.theme === 'dark' ? 'light' : 'dark' })),
+      framingToggle: () => this.setState(s => ({ framing: s.framing === 'otc' ? 'procurement' : 'otc' })),
+      openCompare: () => this.setState({ compare: true }), closeCompare: () => this.setState({ compare: false }),
+      publish: () => this.goPhase('open'), submit: () => this.submitBid(), doClear: () => this.doClear(), resetDemo: () => this.reset(),
+      // screen flags
+      scrSellerDraft, scrSellerMonitor, scrSellerClear, scrSellerOutcome,
+      scrBidderAwait, scrBidderSubmit, scrBidderSealed, scrBidderLocked, scrBidderOutcome,
+      scrSettling, scrRollback, isSeller,
+      // data
+      respRows: respList, respCount, rankRows, tie: r.tie, isSingle,
+      winnerName, winnerAmountFmt, clearLabel, clearedViewers, clearedDenied,
+      myName: myId ? P[myId] : '', myBidFmt: myBid ? fmt(myBid.amount) : '—', myEscrowFmt: myBid ? fmt(myBid.escrow) : '$0',
+      myBidTime: myBid ? myBid.t : '', myBidViewers, hasMyBid, noMyBid, myIsWinner, myIsLoser,
+      bidFieldValue: myId && this.bidData()[myId] ? this.bidData()[myId].amount.toLocaleString('en-US') : '24,800,000',
+      rollbackReason, settleId: 'DvP-2026-0624-7731',
+      compA, compB, compare: S.compare,
+      tlNodes, scnNodes, statusStyle, statusLabel: st.t
+    };
+  }
+}
+</script>
+</body>
+</html>

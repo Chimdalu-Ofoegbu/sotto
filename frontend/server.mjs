@@ -87,6 +87,15 @@ createServer(async (req, res) => {
     if (req.method === 'GET' && url.pathname === '/') {
       res.writeHead(200, { 'Content-Type': 'text/html' }); res.end(readFileSync(INDEX)); return;
     }
+    if (req.method === 'GET' && /^\/[\w.-]+\.(js|css|svg|png)$/.test(url.pathname)) {
+      const types = { '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png' };
+      const ext = url.pathname.slice(url.pathname.lastIndexOf('.'));
+      try {
+        const buf = readFileSync(fileURLToPath(new URL('.' + url.pathname, import.meta.url)));
+        res.writeHead(200, { 'Content-Type': types[ext] || 'application/octet-stream' }); res.end(buf);
+      } catch { res.writeHead(404); res.end('not found'); }
+      return;
+    }
     if (req.method === 'GET' && url.pathname === '/api/meta') return send(res, 200, meta());
     if (req.method === 'GET' && url.pathname === '/api/view') return send(res, 200, await view(url.searchParams.get('party')));
     if (req.method === 'POST' && url.pathname === '/api/setup') return send(res, 200, await setup());

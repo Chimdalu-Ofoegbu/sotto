@@ -1,142 +1,268 @@
 <!doctype html>
-<html lang="en">
+<html>
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Sotto — private sealed-bid OTC execution on Canton</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  :root{--bg:#0c0d10;--panel:#15171c;--panel2:#1b1e25;--line:#262a33;--ink:#e8e9ec;--mut:#8b90a0;--accent:#7aa2f7;--ok:#5ec98b;--warn:#e0af68;--seal:#c0caf5}
   *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 ui-sans-serif,system-ui,Segoe UI,Roboto,sans-serif}
-  header{padding:18px 24px;border-bottom:1px solid var(--line);display:flex;align-items:baseline;gap:16px;flex-wrap:wrap}
-  header h1{margin:0;font-size:18px;font-weight:600;letter-spacing:.3px}
-  header .sub{color:var(--mut);font-size:13px}
-  .bar{padding:12px 24px;border-bottom:1px solid var(--line);display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:var(--panel)}
-  .status{margin-left:auto;color:var(--mut);font-size:13px}
-  button{background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer}
-  button:hover:not(:disabled){border-color:var(--accent)}
-  button:disabled{opacity:.4;cursor:not-allowed}
-  button.primary{background:var(--accent);color:#0b1020;border-color:var(--accent);font-weight:600}
-  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;padding:20px 24px}
-  .col{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
-  .col h2{margin:0;padding:14px 16px;font-size:15px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px}
-  .col.seller h2{color:var(--accent)} .col.a h2{color:var(--warn)} .col.b h2{color:var(--ok)}
-  .col .body{padding:14px 16px;display:flex;flex-direction:column;gap:14px}
-  .role{font-size:12px;color:var(--mut);font-weight:400}
-  .controls{display:flex;gap:8px;align-items:center}
-  input{background:#0e1016;border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:7px 9px;width:90px;font-size:13px}
-  .sec{border:1px solid var(--line);border-radius:9px;background:var(--panel2)}
-  .sec h3{margin:0;padding:9px 11px;font-size:12px;color:var(--mut);font-weight:600;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--line)}
-  .sec .items{padding:8px 11px;display:flex;flex-direction:column;gap:6px;min-height:30px}
-  .bid{display:flex;justify-content:space-between;padding:7px 9px;background:#0e1016;border:1px solid var(--line);border-radius:7px}
-  .bid .who{color:var(--seal)} .bid .amt{font-variant-numeric:tabular-nums;font-weight:600}
-  .mine{border-color:var(--accent)}
-  .empty{color:var(--mut);font-style:italic;font-size:12.5px}
-  .lock{font-size:12px;color:var(--mut);background:#0e1016;border:1px dashed var(--line);border-radius:7px;padding:8px 10px}
-  .lock b{color:var(--seal)}
-  .pill{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--mut)}
-  .win{color:var(--ok);font-weight:600}
-  .lose{color:var(--mut)}
-  .hold{display:flex;justify-content:space-between;font-size:12.5px;padding:3px 0}
-  .asset{color:var(--accent)} .cash{color:var(--ok)}
-  footer{padding:10px 24px;color:var(--mut);font-size:12px;border-top:1px solid var(--line)}
-  code{background:#0e1016;padding:1px 5px;border-radius:5px;color:var(--seal)}
+  html,body{margin:0;padding:0}
+  [data-theme="dark"]{
+    --bg:#0a0c0f; --panel:#0f1318; --panel2:#13181d; --pop:#161b21; --line:#1e242b; --line2:#2b333c;
+    --text:#e9ecef; --dim:#98a2ac; --faint:#646e78; --chip:rgba(255,255,255,.025);
+    --accent:oklch(0.64 0.13 232); --accent-text:oklch(0.82 0.09 232); --accent-dim:oklch(0.64 0.13 232 / .16); --accent-line:oklch(0.64 0.13 232 / .42);
+    --good:oklch(0.74 0.12 165); --good-text:oklch(0.82 0.1 165); --good-dim:oklch(0.74 0.12 165 / .15);
+    --warn:oklch(0.8 0.12 78); --warn-dim:oklch(0.8 0.12 78 / .15);
+    --bad:oklch(0.68 0.17 26); --bad-text:oklch(0.78 0.14 26); --bad-dim:oklch(0.68 0.17 26 / .15);
+    --hatch:repeating-linear-gradient(45deg, #161b21 0 7px, #11161b 7px 14px);
+    --scrim:rgba(5,7,9,.78);
+  }
+  [data-theme="light"]{
+    --bg:#eceef1; --panel:#ffffff; --panel2:#f5f7f9; --pop:#ffffff; --line:#e4e8ec; --line2:#d3d9df;
+    --text:#0e141a; --dim:#566069; --faint:#8b939c; --chip:rgba(0,0,0,.018);
+    --accent:oklch(0.55 0.14 232); --accent-text:oklch(0.48 0.14 232); --accent-dim:oklch(0.55 0.14 232 / .12); --accent-line:oklch(0.55 0.14 232 / .34);
+    --good:oklch(0.52 0.12 165); --good-text:oklch(0.46 0.12 165); --good-dim:oklch(0.52 0.12 165 / .12);
+    --warn:oklch(0.6 0.13 70); --warn-dim:oklch(0.6 0.13 70 / .14);
+    --bad:oklch(0.55 0.18 26); --bad-text:oklch(0.5 0.18 26); --bad-dim:oklch(0.55 0.18 26 / .12);
+    --hatch:repeating-linear-gradient(45deg, #e8ecf0 0 7px, #f0f3f6 7px 14px);
+    --scrim:rgba(40,46,54,.5);
+  }
+  body{background:var(--bg);color:var(--text);font-family:'Space Grotesk',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  button{font-family:'Space Grotesk',system-ui}
+  .mono{font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px}
+  .panel2{background:var(--panel2);border:1px solid var(--line2);border-radius:8px}
+  .caps{font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
+  .vdiv{width:1px;height:30px;background:var(--line2)}
+  .hatch{background:var(--hatch);border:1px dashed var(--line2)}
+  .row-split{display:flex;justify-content:space-between;align-items:center}
+  @keyframes fadeUp{from{transform:translateY(9px);opacity:.6}to{transform:translateY(0);opacity:1}}
+  @keyframes barGrow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+  @keyframes pulseR{0%{box-shadow:0 0 0 0 var(--accent-dim)}70%{box-shadow:0 0 0 12px transparent}100%{box-shadow:0 0 0 0 transparent}}
+  @keyframes legL{from{transform:translateX(34px);opacity:.4}to{transform:translateX(0);opacity:1}}
+  @keyframes legR{from{transform:translateX(-34px);opacity:.4}to{transform:translateX(0);opacity:1}}
+  @keyframes lockSpin{from{transform:scale(.7) rotate(-10deg)}to{transform:scale(1) rotate(0)}}
+  .fade{animation:fadeUp .3s ease both}
 </style>
 </head>
 <body>
-<header>
-  <h1>Sotto</h1>
-  <span class="sub">private sealed-bid OTC block execution · Canton LocalNet · bidder-vs-bidder confidentiality enforced by the protocol</span>
-</header>
-<div class="bar">
-  <button class="primary" id="setup">Set up auction</button>
-  <span class="status" id="status">No auction. Click “Set up auction”.</span>
-</div>
-<div class="grid">
-  <section class="col seller">
-    <h2>Seller <span class="role">· clearing party</span></h2>
-    <div class="body">
-      <div class="controls"><button id="clear" disabled>Clear auction →</button><span class="pill" id="clearhint"></span></div>
-      <div class="sec"><h3>Sealed bids visible to the seller</h3><div class="items" id="seller-bids"></div></div>
-      <div class="sec"><h3>Holdings</h3><div class="items" id="seller-holds"></div></div>
-    </div>
-  </section>
-  <section class="col a">
-    <h2>Bidder A <span class="role">· invited counterparty</span></h2>
-    <div class="body">
-      <div class="controls"><input id="amtA" type="number" value="800" /><button id="bidA" disabled>Submit sealed bid</button></div>
-      <div class="lock">🔒 <b>What A can see:</b> only A's own sealed bid. Other bidders' bids are invisible to A — enforced by Canton sub-transaction privacy, not by this server.</div>
-      <div class="sec"><h3>Sealed bids visible to A</h3><div class="items" id="a-bids"></div></div>
-      <div class="sec"><h3>A's holdings</h3><div class="items" id="a-holds"></div></div>
-    </div>
-  </section>
-  <section class="col b">
-    <h2>Bidder B <span class="role">· invited counterparty</span></h2>
-    <div class="body">
-      <div class="controls"><input id="amtB" type="number" value="950" /><button id="bidB" disabled>Submit sealed bid</button></div>
-      <div class="lock">🔒 <b>What B can see:</b> only B's own sealed bid. A's bid never appears here — that absence is the headline privacy proof.</div>
-      <div class="sec"><h3>Sealed bids visible to B</h3><div class="items" id="b-bids"></div></div>
-      <div class="sec"><h3>B's holdings</h3><div class="items" id="b-holds"></div></div>
-    </div>
-  </section>
-</div>
-<footer>Each column is a <b>party-scoped</b> query of the same ledger (<code>readAs</code> = that party). The seller sees both bids (inherent to clearing); neither bidder sees the other. After clearing, the loser sees only their refund — never the winning price.</footer>
-
+<div id="app"></div>
 <script>
-const $ = (id) => document.getElementById(id);
-let META = { ready:false, labels:{} };
-const label = (p) => META.labels?.[p] || (p ? p.split('::')[0] : '?');
-const api = async (m,u,b) => (await fetch(u,{method:m,headers:{'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined})).json();
+//=== logo svg ===
+const LOGO = '<svg width="22" height="22" viewBox="0 0 24 24" style="color:var(--accent);display:block;"><circle cx="12" cy="12" r="9.2" fill="none" stroke="currentColor" stroke-width="1.8"></circle><rect x="3.4" y="10" width="17.2" height="4" rx="1.2" fill="currentColor"></rect></svg>';
+const LOCK = (c='#fff',w=16)=>`<svg width="${w}" height="${w}" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2.2"><path d="M12 3a4 4 0 0 1 4 4v3H8V7a4 4 0 0 1 4-4z" opacity=".7"></path><rect x="5.5" y="10" width="13" height="9.5" rx="2"></rect></svg>`;
+const SEAL = (c='var(--dim)',w=15)=>`<svg width="${w}" height="${w}" viewBox="0 0 24 24" style="color:${c};flex:none;"><rect x="3" y="10" width="18" height="4" rx="1" fill="currentColor"></rect><rect x="6" y="5" width="12" height="3" rx="1" fill="currentColor" opacity=".5"></rect></svg>`;
+const CHECK = (c='#fff',w=11)=>`<svg width="${w}" height="${w}" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="3"><path d="M20 6L9 17l-5-5"></path></svg>`;
 
-function renderBids(el, bids, mineParty){
-  el.innerHTML = '';
-  if(!bids.length){ el.innerHTML = '<div class="empty">No sealed bids visible to you.</div>'; return; }
-  for(const b of bids){
-    const d=document.createElement('div'); d.className='bid'+(b.payload.bidder===mineParty?' mine':'');
-    d.innerHTML=`<span class="who">${label(b.payload.bidder)}</span><span class="amt">${Number(b.payload.amount)}</span>`;
-    el.appendChild(d);
-  }
+//=== state machine (faithful to the Claude Design prototype) ===
+const PARTIES = { seller:'Acme Treasury', A:'Meridian Capital', B:'Halcyon Asset Mgmt' };
+const state = { theme:'dark', framing:'otc', viewAs:'seller', phase:'draft', scenario:'normal', submitted:{A:false,B:false}, compare:false, openInsp:null };
+
+function bidData(){
+  const s=state.scenario;
+  if(s==='single') return {A:{amount:24812500,escrow:24812500,t:'14:02:11'}, B:null};
+  if(s==='tie') return {A:{amount:24800000,escrow:24800000,t:'14:01:09'}, B:{amount:24800000,escrow:24800000,t:'14:03:44'}};
+  if(s==='rollback') return {A:{amount:24812500,escrow:24650000,t:'14:02:11'}, B:{amount:24790000,escrow:24790000,t:'14:03:44'}};
+  return {A:{amount:24812500,escrow:24812500,t:'14:02:11'}, B:{amount:24790000,escrow:24790000,t:'14:03:44'}};
 }
-function renderHolds(el, holds){
-  el.innerHTML='';
-  const hs = holds.filter(h=>h.payload);
-  if(!hs.length){ el.innerHTML='<div class="empty">No holdings.</div>'; return; }
-  for(const h of hs){
-    const d=document.createElement('div'); d.className='hold';
-    const isA=h.payload.instrument==='ASSET';
-    d.innerHTML=`<span class="${isA?'asset':'cash'}">${isA?'ASSET block':'CASH'}</span><span>${Number(h.payload.quantity)}</span>`;
-    el.appendChild(d);
-  }
+function bids(){
+  const sc=bidData(), ph=state.phase, sub=state.submitted;
+  if(ph==='draft') return {A:null,B:null};
+  if(ph==='open') return {A:sub.A?sc.A:null, B:sub.B?sc.B:null};
+  return sc;
+}
+function ranked(){
+  const b=bids(), arr=[];
+  if(b.A) arr.push({id:'A',...b.A});
+  if(b.B) arr.push({id:'B',...b.B});
+  const otc=state.framing==='otc';
+  arr.sort((x,y)=>otc?y.amount-x.amount:x.amount-y.amount);
+  let tie=false;
+  if(arr.length>1 && arr[0].amount===arr[1].amount){tie=true; arr.sort((x,y)=>x.t<y.t?-1:1);}
+  return {arr, tie, winnerId: arr.length?arr[0].id:null};
+}
+const fmt=(n)=>'$'+Number(n).toLocaleString('en-US');
+
+//=== actions ===
+function setState(patch){ Object.assign(state, patch); render(); }
+function goPhase(k){ if(k==='live'){ setState({phase:'live',submitted:{A:true,B:true}}); return;} setState({phase:k}); }
+function goNode(k){
+  if(k==='cleared'){ doClear(); return; }
+  if(k==='settled'){ setState({phase: state.scenario==='rollback'?'rollback':'settled'}); return; }
+  goPhase(k);
+}
+let _t=null;
+function doClear(){
+  setState({phase:'cleared'});
+  clearTimeout(_t);
+  _t=setTimeout(()=>{
+    const r=ranked(), b=bids();
+    const wb=r.winnerId?b[r.winnerId]:null;
+    const fail=!!(wb && wb.escrow<wb.amount);
+    setState({phase: fail?'rollback':'settled'});
+  }, 2700);
+}
+function submitBid(){ const id=state.viewAs==='bidderA'?'A':'B'; state.submitted[id]=true; setState({}); }
+function setScenario(k){
+  clearTimeout(_t);
+  const ph=state.phase, keep=(ph==='draft'||ph==='open');
+  setState({scenario:k, phase: keep?ph:'live', submitted: keep?state.submitted:{A:true,B:true}});
+}
+function resetDemo(){ clearTimeout(_t); setState({phase:'draft', submitted:{A:false,B:false}, compare:false}); }
+function toggleInsp(id){ setState({openInsp: state.openInsp===id?null:id}); }
+
+//=== inspector popover ===
+let _inspSeq=0;
+function inspector(viewers, {label, denied='', footer='Need-to-know is enforced by the network, not a trusted intermediary.', align='left'}={}){
+  const id='insp'+(_inspSeq++);
+  const lbl=label||('Seen by '+viewers.length);
+  const open=state.openInsp===id;
+  const rows=viewers.map(v=>{
+    const hi=v.you||v.accent;
+    const dot=v.accent?'var(--accent)':(v.you?'var(--text)':'var(--faint)');
+    const tagBg=v.accent?'var(--accent-dim)':'var(--line)', tagCol=v.accent?'var(--accent-text)':'var(--faint)';
+    return `<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:7px 0;border-top:1px solid var(--line);">
+      <div style="display:flex;align-items:center;gap:9px;min-width:0;">
+        <span style="width:6px;height:6px;border-radius:50%;flex:none;background:${dot};"></span>
+        <span style="color:${hi?'var(--text)':'var(--dim)'};font-weight:${hi?600:500};font-size:12.5px;white-space:nowrap;">${v.name}</span>
+        ${v.you?'<span style="font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:1px 5px;border-radius:3px;background:var(--text);color:var(--bg);">You</span>':''}
+      </div>
+      <span style="font-size:9.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:2px 6px;border-radius:4px;white-space:nowrap;flex:none;background:${tagBg};color:${tagCol};">${v.role}</span>
+    </div>`;
+  }).join('');
+  const deniedRow = denied?`<div style="display:flex;align-items:center;gap:9px;padding:7px 0;border-top:1px solid var(--line);"><span style="width:6px;height:6px;border-radius:50%;flex:none;background:transparent;border:1px solid var(--faint);"></span><span style="font-size:12px;color:var(--faint);text-decoration:line-through;text-decoration-color:var(--line2);">${denied}</span></div>`:'';
+  const pop = open?`<div onclick="event.stopPropagation();toggleInsp('${id}')" style="position:fixed;inset:0;z-index:80;"></div>
+    <div style="position:absolute;top:calc(100% + 9px);${align==='right'?'right:0;':'left:0;'}z-index:81;min-width:256px;max-width:300px;background:var(--pop);border:1px solid var(--line2);border-radius:10px;box-shadow:0 16px 40px rgba(0,0,0,.5);padding:11px 13px 12px;">
+      <div style="padding-bottom:9px;"><span style="font-size:9.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);">Who can see this</span></div>
+      ${rows}${deniedRow}
+      <div style="margin-top:9px;padding-top:9px;border-top:1px solid var(--line);font-size:10.5px;line-height:1.45;color:var(--faint);">${footer}</div>
+    </div>`:'';
+  return `<span style="position:relative;display:inline-flex;">
+    <button type="button" onclick="event.stopPropagation();toggleInsp('${id}')" style="display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:999px;border:1px solid var(--line2);background:var(--chip);color:var(--dim);font-size:11px;font-weight:500;line-height:1;cursor:pointer;white-space:nowrap;">
+      <span style="width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px var(--accent-dim);"></span><span>${lbl}</span><span style="opacity:.5;font-size:9px;">▾</span>
+    </button>${pop}</span>`;
 }
 
-async function refresh(){
-  META = await api('GET','/api/meta');
-  const ready = META.ready;
-  $('bidA').disabled=$('bidB').disabled=!ready||META.cleared;
-  // status + countdown + clear gating
-  if(!ready){ $('status').textContent='No auction. Click “Set up auction”.'; }
-  else if(META.cleared){
-    const w = META.winner ? 'Bidder '+META.winner : 'no qualifying bid';
-    $('status').innerHTML = `<span class="win">Cleared · winner: ${w}</span> — asset delivered, winning cash paid, loser refunded (atomic DvP).`;
-    $('clear').disabled=true; $('clearhint').textContent='settled';
-  } else {
-    const left = Math.max(0, Math.round((META.deadlineMs - Date.now())/1000));
-    if(left>0){ $('status').textContent=`Bidding open · closes in ${left}s`; $('clear').disabled=true; $('clearhint').textContent=`clear in ${left}s`; }
-    else { $('status').textContent='Bidding closed · seller may clear'; $('clear').disabled=false; $('clearhint').textContent='ready'; }
-  }
-  if(!ready) return;
-  const [s,a,b] = await Promise.all([api('GET','/api/view?party=seller'),api('GET','/api/view?party=A'),api('GET','/api/view?party=B')]);
-  renderBids($('seller-bids'), s.bids, null); renderHolds($('seller-holds'), s.holds||s.holdings);
-  renderBids($('a-bids'), a.bids, META.parties?.bidderA); renderHolds($('a-holds'), a.holdings);
-  renderBids($('b-bids'), b.bids, META.parties?.bidderB); renderHolds($('b-holds'), b.holdings);
-  renderHolds($('seller-holds'), s.holdings);
+//=== derived values (port of renderVals) ===
+function derive(){
+  const S=state, otc=S.framing==='otc', va=S.viewAs, ph=S.phase, P=PARTIES;
+  const youSeller=va==='seller', youA=va==='bidderA', youB=va==='bidderB';
+  const myId=youA?'A':youB?'B':null;
+  const L = otc
+    ? {sellerRole:'Seller',bidderWord:'Bidder',listing:'block listing',invite:'Invited counterparties',reserveWord:'Reserve',priceWord:'Cleared price',clearWord:'Clear'}
+    : {sellerRole:'Buyer',bidderWord:'Supplier',listing:'RFQ',invite:'Invited suppliers',reserveWord:'Ceiling',priceWord:'Awarded price',clearWord:'Award'};
+  const winRuleLine = otc?'Highest sealed bid clears':'Lowest sealed quote wins';
+  const b=bids(), r=ranked();
+  const winnerId=r.winnerId, loserId=winnerId?(winnerId==='A'?'B':'A'):null;
+  const winnerName=winnerId?P[winnerId]:'', loserName=loserId?P[loserId]:'';
+  const wb=winnerId?b[winnerId]:null, winnerAmountFmt=wb?fmt(wb.amount):'—';
+  const myBid=myId?b[myId]:null, hasMyBid=!!myBid;
+  const sellerV={name:P.seller,role:'clearing party',accent:true,you:youSeller};
+  let termsViewers;
+  if(youSeller) termsViewers=[sellerV,{name:P.A,role:'invited'},{name:P.B,role:'invited'}];
+  else if(youA) termsViewers=[sellerV,{name:P.A,role:'invited',you:true},{name:'1 other counterparty',role:'invited'}];
+  else termsViewers=[sellerV,{name:P.B,role:'invited',you:true},{name:'1 other counterparty',role:'invited'}];
+  return {S,otc,va,ph,P,youSeller,youA,youB,myId,L,winRuleLine,b,r,winnerId,loserId,winnerName,loserName,wb,winnerAmountFmt,myBid,hasMyBid,sellerV,termsViewers,
+    faceFmt:fmt(25000000), reserveFmt:fmt(24600000),
+    isSeller:youSeller, isSingle:S.scenario==='single', tie:r.tie,
+    myName:myId?P[myId]:'', myBidFmt:myBid?fmt(myBid.amount):'—', myEscrowFmt:myBid?fmt(myBid.escrow):'$0', myBidTime:myBid?myBid.t:'',
+    myIsWinner:!!(myId&&myId===winnerId&&hasMyBid), myIsLoser:!!(!youSeller&&hasMyBid&&myId!==winnerId), noMyBid:!youSeller&&!hasMyBid,
+    settleId:'DvP-2026-0624-7731',
+    bidVerbLower: otc?'bid':'quote', reserveWordLower:L.reserveWord.toLowerCase()};
 }
 
-$('setup').onclick=async()=>{ $('setup').disabled=true; $('setup').textContent='Setting up…'; try{ await api('POST','/api/setup'); }finally{ $('setup').disabled=false; $('setup').textContent='Reset auction'; } refresh(); };
-$('bidA').onclick=async()=>{ const r=await api('POST','/api/bid',{which:'A',amount:Number($('amtA').value)}); if(r.error)alert(r.error); refresh(); };
-$('bidB').onclick=async()=>{ const r=await api('POST','/api/bid',{which:'B',amount:Number($('amtB').value)}); if(r.error)alert(r.error); refresh(); };
-$('clear').onclick=async()=>{ const r=await api('POST','/api/clear'); if(r.error)alert(r.error); refresh(); };
-setInterval(refresh, 1500); refresh();
+//=== segmented control + header ===
+function seg(on){return `display:inline-flex;align-items:center;gap:7px;padding:7px 14px;border-radius:7px;border:1px solid ${on?'var(--accent)':'transparent'};background:${on?'var(--accent)':'transparent'};color:${on?'#fff':'var(--dim)'};font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap;`;}
+function header(d){
+  return `<header style="position:sticky;top:0;z-index:40;display:flex;align-items:center;gap:20px;padding:0 22px;height:60px;background:var(--panel);border-bottom:1px solid var(--line);">
+    <div style="display:flex;align-items:center;gap:11px;">${LOGO}<span style="font-size:18px;font-weight:600;letter-spacing:.2em;">SOTTO</span>
+      <span style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);border-left:1px solid var(--line2);padding-left:11px;margin-left:3px;white-space:nowrap;">${d.otc?'OTC block · sealed bid':'Procurement · reverse auction'}</span></div>
+    <div style="flex:1;"></div>
+    <div style="display:flex;align-items:center;gap:11px;">
+      <span style="font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);">Viewing as</span>
+      <div style="display:flex;padding:3px;gap:3px;background:var(--bg);border:1px solid var(--line2);border-radius:9px;">
+        <button onclick="setState({viewAs:'seller'})" style="${seg(d.youSeller)}">${d.L.sellerRole}</button>
+        <button onclick="setState({viewAs:'bidderA'})" style="${seg(d.youA)}"><span style="width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.7;"></span>${d.L.bidderWord} A</button>
+        <button onclick="setState({viewAs:'bidderB'})" style="${seg(d.youB)}"><span style="width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.7;"></span>${d.L.bidderWord} B</button>
+      </div>
+    </div>
+    <div class="vdiv" style="height:26px;"></div>
+    <button onclick="setState({compare:true})" style="display:flex;align-items:center;gap:8px;padding:8px 13px;border-radius:8px;border:1px solid var(--accent-line);background:var(--accent-dim);color:var(--accent-text);font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="7" height="16" rx="1"></rect><rect x="14" y="4" width="7" height="16" rx="1"></rect></svg>Split view</button>
+    <button onclick="setState({framing: state.framing==='otc'?'procurement':'otc'})" title="Toggle framing" style="display:flex;align-items:center;gap:7px;padding:8px 11px;border-radius:8px;border:1px solid var(--line2);background:transparent;color:var(--dim);font-size:11.5px;font-weight:600;cursor:pointer;">⇄</button>
+    <button onclick="setState({theme: state.theme==='dark'?'light':'dark'})" title="Toggle theme" style="display:flex;align-items:center;gap:7px;padding:8px 12px;border-radius:8px;border:1px solid var(--line2);background:transparent;color:var(--dim);font-size:11.5px;font-weight:600;cursor:pointer;min-width:64px;justify-content:center;">${d.S.theme==='dark'?'Dark':'Light'}</button>
+  </header>`;
+}
+function contextStrip(d){
+  const stMap={draft:{t:'Draft listing',c:'var(--faint)',bg:'var(--line)'},open:{t:'Bidding open',c:'var(--accent-text)',bg:'var(--accent-dim)'},live:{t:'Bids sealed',c:'var(--accent-text)',bg:'var(--accent-dim)'},locked:{t:'Closed — ready to clear',c:'var(--warn)',bg:'var(--warn-dim)'},cleared:{t:'Clearing…',c:'var(--accent-text)',bg:'var(--accent-dim)'},settled:{t:'Settled',c:'var(--good-text)',bg:'var(--good-dim)'},rollback:{t:'Rolled back — nothing moved',c:'var(--bad-text)',bg:'var(--bad-dim)'}};
+  const st=stMap[d.ph]||stMap.draft;
+  const cell=(label,val,extra='')=>`<div style="display:flex;flex-direction:column;gap:3px;padding:0 22px;"><span style="font-size:9.5px;font-weight:600;letter-spacing:.13em;text-transform:uppercase;color:var(--faint);">${label}</span><span style="font-size:13.5px;font-weight:600;color:var(--text);${extra}">${val}</span></div>`;
+  return `<div style="display:flex;align-items:center;padding:13px 22px;background:var(--panel2);border-bottom:1px solid var(--line);flex-wrap:wrap;row-gap:10px;">
+    <div style="display:flex;flex-direction:column;gap:3px;padding-right:22px;"><span style="font-size:9.5px;font-weight:600;letter-spacing:.13em;text-transform:uppercase;color:var(--faint);">Instrument</span><span style="font-size:13.5px;font-weight:600;">U.S. Treasury Bill <span style="color:var(--dim);font-weight:500;">· 26-week · mat. 17 Dec 2026</span></span></div>
+    <div class="vdiv"></div>${cell('Face value',d.faceFmt,"font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;")}
+    <div class="vdiv"></div>${cell(d.L.reserveWord,d.reserveFmt,"font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;color:var(--accent-text);")}
+    <div class="vdiv"></div>${cell('CUSIP','912797 KL4',"font-family:'IBM Plex Mono',monospace;")}
+    <div style="flex:1;min-width:18px;"></div>
+    <div style="display:flex;align-items:center;gap:14px;">${inspector(d.termsViewers,{label:'Terms · seen by '+d.termsViewers.length,footer:'Auction terms are shared with everyone invited.'})}
+      <div style="display:inline-flex;align-items:center;gap:7px;padding:4px 11px;border-radius:999px;background:${st.bg};color:${st.c};font-size:11.5px;font-weight:600;white-space:nowrap;"><span style="width:7px;height:7px;border-radius:50%;background:currentColor;"></span>${st.t}</div></div>
+  </div>`;
+}
+</script>
+<script src="./screens.js"></script>
+<script>
+//=== timeline + scenario bar + compare overlay + root render ===
+function timelineBar(d){
+  const order=['draft','open','live','locked','cleared','settled']; let cur=order.indexOf(d.ph); if(d.ph==='rollback') cur=5;
+  const defs=[['draft','List'],['open','Open'],['live','Bids in'],['locked','Closed'],['cleared','Clear'],['settled','Settle']];
+  const nodes=defs.map((df,i)=>{
+    const k=df[0], done=i<cur, active=i===cur, fail=d.ph==='rollback'&&k==='settled';
+    const fill=fail?'var(--bad)':'var(--accent)';
+    const conn=i>0?`<div style="height:2px;flex:1;min-width:14px;max-width:46px;background:${i<=cur?'var(--accent-line)':'var(--line2)'};"></div>`:'';
+    const dot=`<span style="width:${active?11:9}px;height:${active?11:9}px;border-radius:50%;flex:none;display:block;background:${(done||active)?fill:'transparent'};border:${(done||active)?'none':'1.5px solid var(--faint)'};box-shadow:${active?'0 0 0 4px '+(fail?'var(--bad-dim)':'var(--accent-dim)'):'none'};"></span>`;
+    const lab=`<span style="font-size:11px;font-weight:${active?700:500};white-space:nowrap;letter-spacing:.02em;color:${active?(fail?'var(--bad-text)':'var(--text)'):done?'var(--dim)':'var(--faint)'};">${df[1]}</span>`;
+    return `${conn}<button onclick="goNode('${k}')" style="display:flex;align-items:center;gap:8px;background:transparent;border:none;cursor:pointer;padding:6px 4px;white-space:nowrap;">${dot}${lab}</button>`;
+  }).join('');
+  const scns=[['normal','Two bids'],['single','Single bidder'],['tie','Tie'],['rollback','Short escrow']].map(s=>{
+    const on=d.S.scenario===s[0];
+    return `<button onclick="setScenario('${s[0]}')" style="padding:5px 11px;border-radius:6px;border:1px solid ${on?'var(--accent-line)':'var(--line2)'};background:${on?'var(--accent-dim)':'transparent'};color:${on?'var(--accent-text)':'var(--dim)'};font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;">${s[1]}</button>`;
+  }).join('');
+  return `<div style="position:fixed;bottom:0;left:0;right:0;z-index:45;display:flex;align-items:center;gap:22px;padding:0 22px;height:64px;background:var(--panel);border-top:1px solid var(--line);box-shadow:0 -4px 20px rgba(0,0,0,.18);">
+    <span style="font-size:9.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);white-space:nowrap;">Demo flow</span>
+    <div style="display:flex;align-items:center;flex:1;">${nodes}</div>
+    <div style="display:flex;align-items:center;gap:9px;"><span style="font-size:9.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);white-space:nowrap;">Scenario</span>${scns}</div>
+  </div>`;
+}
+function compareOverlay(d){
+  if(!d.S.compare) return '';
+  const b=d.b;
+  const side=(name,bid)=>`<div style="margin-bottom:18px;"><div style="font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--accent-text);margin-bottom:9px;">Their own bid</div>
+    ${bid?`<div class="mono" style="font-size:30px;font-weight:600;">${fmt(bid.amount)}</div><div class="mono" style="font-size:11.5px;color:var(--faint);margin-top:4px;">Sealed ${bid.t} ET · visible to them + clearing party</div>`:'<div style="font-size:18px;font-weight:600;color:var(--faint);">No bid yet</div>'}</div>
+    <div><div style="font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin-bottom:9px;">The other side</div>
+      <div class="hatch" style="display:flex;align-items:center;gap:14px;padding:18px;border-radius:10px;">${LOCK('var(--faint)',19)}<div><div class="mono" style="font-size:15px;font-weight:600;color:var(--dim);letter-spacing:.08em;">•••••••••</div><div style="font-size:11.5px;color:var(--faint);margin-top:2px;">Sealed · not disclosed to you</div></div></div></div>`;
+  return `<div onclick="setState({compare:false})" style="position:fixed;inset:0;z-index:90;background:var(--scrim);display:flex;align-items:center;justify-content:center;padding:34px;">
+    <div onclick="event.stopPropagation()" style="width:100%;max-width:1080px;background:var(--bg);border:1px solid var(--line2);border-radius:18px;box-shadow:0 30px 90px rgba(0,0,0,.5);overflow:hidden;">
+      <div class="row-split" style="padding:18px 26px;border-bottom:1px solid var(--line);"><div style="display:flex;align-items:center;gap:11px;">${LOGO}<span style="font-size:13px;font-weight:600;letter-spacing:.04em;">Confidentiality · side by side</span></div>
+        <button onclick="setState({compare:false})" style="width:32px;height:32px;border-radius:8px;border:1px solid var(--line2);background:transparent;color:var(--dim);cursor:pointer;">✕</button></div>
+      <div style="position:relative;display:grid;grid-template-columns:1fr 1fr;">
+        <div style="padding:30px;border-right:1px solid var(--line);"><div style="display:flex;align-items:center;gap:9px;margin-bottom:22px;"><span style="width:9px;height:9px;border-radius:50%;background:var(--accent);"></span><span style="font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);">As ${d.P.A} sees it</span></div>${side(d.P.A,b.A)}</div>
+        <div style="padding:30px;"><div style="display:flex;align-items:center;gap:9px;margin-bottom:22px;"><span style="width:9px;height:9px;border-radius:50%;background:var(--accent);"></span><span style="font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);">As ${d.P.B} sees it</span></div>${side(d.P.B,b.B)}</div>
+        <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;width:64px;height:64px;border-radius:50%;background:var(--bg);border:1.5px solid var(--line2);display:flex;align-items:center;justify-content:center;"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--faint)" stroke-width="1.8"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"></path><circle cx="12" cy="12" r="3"></circle><path d="M3 3l18 18" stroke="var(--bad)" stroke-width="2"></path></svg></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:14px;padding:20px 30px;background:var(--panel);border-top:1px solid var(--line);"><div style="font-size:16px;font-weight:600;">Neither side can see the other's bid.</div><div style="flex:1;"></div><div style="font-size:12px;color:var(--dim);max-width:380px;text-align:right;line-height:1.45;">Both bids exist and are sealed in escrow. Each party sees only its own — enforced by Canton sub-transaction privacy, not a trusted intermediary.</div></div>
+    </div></div>`;
+}
+function render(){
+  const d=derive();
+  document.getElementById('app').innerHTML =
+    `<div data-theme="${d.S.theme}" style="min-height:100vh;background:var(--bg);color:var(--text);padding-bottom:108px;">
+      ${header(d)}${contextStrip(d)}
+      <main style="max-width:1180px;margin:0 auto;padding:30px 24px 10px;">${screen(d)}</main>
+      ${timelineBar(d)}${compareOverlay(d)}
+    </div>`;
+}
+render();
 </script>
 </body>
 </html>
