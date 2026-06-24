@@ -10,9 +10,10 @@
 // only ever return what B is a stakeholder of. That is what makes the INV-1
 // re-assertion at this layer meaningful, not an omniscient/admin read.
 
-export const PKG = 'e1fb5f772ef7c7642ed7f13622acaa60fa9c70f5ffcf159cb02edf692fa66b71';
 export const BASE = process.env.SOTTO_JSON_API || 'http://localhost:7575';
-export const tid = (entity) => `${PKG}:Sotto:${entity}`;
+// Package-NAME template ref (Daml 3.x): resolves to the deployed `sotto` model package
+// regardless of its content hash, so rebuilds/repackaging don't require code changes.
+export const tid = (entity) => `#sotto:Sotto:${entity}`;
 
 async function api(method, path, body) {
   const r = await fetch(BASE + path, {
@@ -42,11 +43,23 @@ export async function ledgerEnd() {
 }
 
 // Submit commands as a single transaction acting as `actAs`. Returns the tx.
+// Retries the brief post-startup race where the DAR is uploaded but its package
+// name isn't resolvable yet (PACKAGE_NAMES_NOT_FOUND) — `readyz` precedes vetting.
 async function submit(actAs, commands) {
-  const d = await api('POST', '/v2/commands/submit-and-wait-for-transaction', {
-    commands: { commands, commandId: cmdId(), actAs: [actAs], userId: 'sotto-demo' },
-  });
-  return d.transaction;
+  let lastErr;
+  for (let i = 0; i < 10; i++) {
+    try {
+      const d = await api('POST', '/v2/commands/submit-and-wait-for-transaction', {
+        commands: { commands, commandId: cmdId(), actAs: [actAs], userId: 'sotto-demo' },
+      });
+      return d.transaction;
+    } catch (e) {
+      lastErr = e;
+      if (String(e).includes('PACKAGE_NAMES_NOT_FOUND')) { await new Promise((r) => setTimeout(r, 1500)); continue; }
+      throw e;
+    }
+  }
+  throw lastErr;
 }
 
 export async function create(actAs, entity, createArguments) {

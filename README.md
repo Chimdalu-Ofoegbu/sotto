@@ -76,7 +76,7 @@ source ~/.sotto-env.sh              # JAVA_HOME + PATH
 **Build + run the invariant tests** (Daml Script, in-memory — no network needed):
 
 ```bash
-cd daml && dpm build && dpm test
+make test            # compile the model + run INV-1..INV-5 (Daml Script, in-memory, no network)
 ```
 
 **Start LocalNet** (`dpm sandbox` = Canton + JSON Ledger API on :7575) and run the
@@ -97,7 +97,7 @@ Open it, click **Set up auction**, submit Bidder A's bid — and watch **Bidder 
 stay empty** while the Seller sees both. Wait for the deadline, click **Clear**.
 
 > `make` not installed? Every target maps to a script: `bash scripts/sandbox.sh`,
-> `bash scripts/demo.sh`, `cd daml && dpm test`.
+> `bash scripts/demo.sh`, `make test   # builds the model + runs the Daml Script suite`.
 
 ## Verify the claims yourself
 
@@ -105,7 +105,7 @@ stay empty** while the Seller sees both. Wait for the deadline, click **Clear**.
 
 ```bash
 # (a) Party-scoped Daml Script query — the hard gate
-cd daml && dpm test
+make test   # builds the model + runs the Daml Script suite
 #   => daml/Sotto/Test.daml:testInv1Privacy: ok
 #      asserts a query AS bidder B contains no SealedBid/Escrow created by A, and no A amount.
 
@@ -117,7 +117,7 @@ bash scripts/demo.sh
 **INV-2 — atomic DvP (and its failing-path rollback):**
 
 ```bash
-cd daml && dpm test
+make test   # builds the model + runs the Daml Script suite
 #   => testInv2AtomicDvp: ok                  (asset→winner, cash→seller, loser refunded)
 #   => testInv2RollbackOnInsufficientEscrow: ok (a bad winning escrow rolls the WHOLE clear back)
 bash scripts/demo.sh

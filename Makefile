@@ -6,11 +6,12 @@
 
 .PHONY: build test sandbox start demo clean
 
-build:            ## Compile the Daml model to a DAR
+build:            ## Compile the model + test packages (multi-package) to DARs
 	cd daml && dpm build
 
 test:             ## Run Daml Script invariant tests (INV-1..INV-5 + audit checks)
-	cd daml && dpm test
+	cd daml && dpm build
+	cd daml/test && dpm test
 
 sandbox start:    ## Start LocalNet (dpm sandbox: Canton + JSON Ledger API on :7575)
 	bash scripts/sandbox.sh

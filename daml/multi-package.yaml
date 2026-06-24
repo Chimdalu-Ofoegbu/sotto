@@ -1,0 +1,5 @@
+# Two packages: the model (.) and the Daml-Script test suite (./test, which
+# data-depends on the model). `dpm build` builds both in dependency order.
+packages:
+  - .
+  - ./test

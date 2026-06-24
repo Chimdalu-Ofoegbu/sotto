@@ -73,6 +73,6 @@ Restore the build env in any WSL shell: `source ~/.sotto-env.sh`. Fresh install:
 ## How to Resume / Run
 1. Ubuntu WSL2: `source ~/.sotto-env.sh` (or `bash scripts/install-toolchain.sh` on a fresh box).
 2. `cd /mnt/c/Users/Ben/Desktop/B3NSAG3/Hackathons/Sotto`.
-3. Invariants: `cd daml && dpm build && dpm test`.
+3. Invariants: `make test` (model is one package; tests are a separate `daml/test` package).
 4. LocalNet + demo: `make start && make demo` (or `bash scripts/sandbox.sh` then `bash scripts/demo.sh`).
 5. UI: `node frontend/server.mjs` → open http://localhost:3000.
