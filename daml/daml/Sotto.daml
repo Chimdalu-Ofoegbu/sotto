@@ -1,0 +1,222 @@
+-- | Sotto — private sealed-bid OTC block execution on Canton.
+--
+-- Privacy is protocol-enforced by Canton sub-transaction privacy, not by any
+-- server. The design keeps a sealed bid visible to ONLY its bidder and the
+-- seller/clearing party — never another bidder, never a backend identity (INV-5).
+-- Even the *act* of bidding is invisible to other bidders, because each bidder
+-- bids through a private per-bidder 'BidInvitation' (seller + that bidder only),
+-- not through a shared contract.
+module Sotto where
+
+import DA.List (sortOn, head, last)
+import DA.Foldable (forA_)
+import Sotto.Types
+
+-- ---------------------------------------------------------------------------
+-- Holding (MODEL-01): a minimal on-ledger asset/cash token.
+--
+-- signatory = issuer; the owner can transfer it. The issuer's authority is
+-- delegated through the contract's signatory, so a transfer is single-party
+-- (no recipient signature needed) — which is what lets the atomic 'Clear'
+-- move asset and cash with only the seller's authority.
+-- ---------------------------------------------------------------------------
+template Holding
+  with
+    issuer : Party
+    owner : Party
+    instrument : InstrumentType
+    quantity : Decimal
+  where
+    signatory issuer
+    observer owner
+    ensure quantity > 0.0
+
+    -- Reassign ownership. Controller is the current owner.
+    choice Transfer : ContractId Holding
+      with newOwner : Party
+      controller owner
+      do create this with owner = newOwner
+
+-- ---------------------------------------------------------------------------
+-- Auction (MODEL-02): created by the seller (also the clearing party).
+--
+-- Carries the asset description, invited bidders, reserve/floor and deadline.
+-- Invited bidders may observe the TERMS (not secret). Bidding NEVER consumes
+-- this contract (handoff contention note) — it is consumed exactly once, at
+-- 'Clear'. Bids are independent contracts; they do not contend here.
+-- ---------------------------------------------------------------------------
+template Auction
+  with
+    seller : Party
+    invitedBidders : [Party]
+    assetDescription : Text
+    assetQuantity : Decimal
+    reserve : Decimal
+    deadline : Time
+  where
+    signatory seller
+    observer invitedBidders
+
+    -- Clearing (MODEL-05). One transaction: consume winning bid + escrow,
+    -- asset -> winner, winning cash -> seller, refund every losing escrow.
+    -- Atomic by construction (single Daml transaction).
+    choice Clear : ClearResult
+      with
+        assetCid : ContractId Holding      -- the ASSET block (owned by seller)
+        bids : [ContractId SealedBid]      -- every submitted bid (seller sees all)
+      controller seller
+      do
+        now <- getTime
+        assertMsg "Cannot clear before the deadline" (now > deadline)
+
+        -- Fetch all candidate bids (seller is observer on each).
+        bidData <- forA bids \cid -> do b <- fetch cid; pure (cid, b)
+        let qualifying = filter (\(_, b) -> meetsReserve b.amount reserve) bidData
+
+        case qualifying of
+          [] -> do
+            -- No qualifying bid: refund everyone, nothing settles.
+            forA_ bidData \(cid, _) -> do esc <- exercise cid Reject; exercise esc Refund
+            pure NoWinner
+          _ -> do
+            -- Select the winner per the configured bid direction.
+            let ranked = sortOn (\(_, b) -> b.amount) qualifying        -- ascending
+            let (winCid, winBid) = if highestBidWins then last ranked else head ranked
+
+            -- Winner leg: consume bid, finalize cash to seller, asset to winner.
+            wEsc <- exercise winCid AcceptWin
+            _ <- exercise wEsc Settle                                   -- cash stays with seller
+            _ <- exercise assetCid Transfer with newOwner = winBid.bidder
+
+            -- Loser legs: consume bid, refund escrow to its bidder.
+            let losers = filter (\(cid, _) -> cid /= winCid) bidData
+            forA_ losers \(cid, _) -> do esc <- exercise cid Reject; exercise esc Refund
+
+            pure Winner with winner = winBid.bidder, price = winBid.amount
+
+-- | Outcome of clearing. Returned to the seller; reveals nothing to losers.
+data ClearResult
+  = Winner with winner : Party, price : Decimal
+  | NoWinner
+  deriving (Eq, Show)
+
+-- ---------------------------------------------------------------------------
+-- BidInvitation: a private per-bidder channel to place a sealed bid.
+--
+-- Stakeholders = seller + ONE bidder only. So the act of bidding (and the
+-- deadline check) is invisible to every other bidder — there is no shared
+-- contract for bidders to observe each other through. This is what makes the
+-- INV-1 privacy proof airtight even at the metadata level.
+-- ---------------------------------------------------------------------------
+template BidInvitation
+  with
+    seller : Party
+    bidder : Party
+    deadline : Time
+  where
+    signatory seller
+    observer bidder
+
+    -- Place a sealed bid + escrow the cash. Non-consuming so a bidder could in
+    -- principle revise via withdraw/replace before the deadline; bids themselves
+    -- are independent contracts (no contention on any shared contract).
+    nonconsuming choice PlaceSealedBid : (ContractId SealedBid, ContractId Escrow)
+      with
+        amount : Decimal             -- the sealed bid price (in cash)
+        cashCid : ContractId Holding -- bidder's CASH holding to lock (== amount)
+      controller bidder
+      do
+        now <- getTime
+        assertMsg "Bidding is closed: past the deadline" (now <= deadline)
+        cash <- fetch cashCid
+        assertMsg "Cash must be owned by the bidder" (cash.owner == bidder)
+        assertMsg "Holding must be CASH" (cash.instrument == CASH)
+        -- Demo simplification: escrow exactly the bid amount (fixtures use exact
+        -- amounts; documented in DECISIONS.md). Locks cash by moving it to the
+        -- clearing party so it cannot be double-spent while the auction runs.
+        assertMsg "Escrow requires cash exactly equal to the bid" (cash.quantity == amount)
+        lockedCash <- exercise cashCid Transfer with newOwner = seller
+        esc <- create Escrow with
+          bidder
+          clearingParty = seller
+          cashIssuer = cash.issuer
+          amount
+          lockedCash
+          auctionDeadline = deadline
+        bid <- create SealedBid with
+          bidder
+          seller
+          amount
+          escrow = esc
+          auctionDeadline = deadline
+        pure (bid, esc)
+
+-- ---------------------------------------------------------------------------
+-- Escrow (MODEL-03): a bidder's cash locked for an auction.
+--
+-- signatory = bidder; observer = clearing party (a stakeholder, so it can be
+-- consumed atomically at clear). The locked cash is held as a Holding now owned
+-- by the clearing party (so the bidder cannot double-spend it). 'Settle' keeps
+-- it with the seller (winner pays); 'Refund' returns it to the bidder (loser).
+-- ---------------------------------------------------------------------------
+template Escrow
+  with
+    bidder : Party
+    clearingParty : Party
+    cashIssuer : Party
+    amount : Decimal
+    lockedCash : ContractId Holding   -- the cash, now owned by clearingParty
+    auctionDeadline : Time
+  where
+    signatory bidder
+    observer clearingParty
+
+    -- Winner: the winning cash is already with the seller; validate then finalize.
+    -- The fetch+assert makes an insufficient/invalid escrow fail here, which (because
+    -- Clear is a single transaction) rolls the ENTIRE clear back — the INV-2 guarantee.
+    choice Settle : ContractId Holding
+      controller clearingParty
+      do
+        cash <- fetch lockedCash
+        assertMsg "Escrowed cash is insufficient or invalid for the winning bid"
+          (cash.instrument == CASH && cash.quantity >= amount && cash.owner == clearingParty)
+        pure lockedCash
+
+    -- Loser: refund the locked cash back to the bidder.
+    choice Refund : ContractId Holding
+      controller clearingParty
+      do exercise lockedCash Transfer with newOwner = bidder
+
+-- ---------------------------------------------------------------------------
+-- SealedBid (MODEL-04, privacy-critical): signatory = bidder, observer =
+-- seller (clearing party) ONLY. Never another bidder, never a backend identity
+-- (INV-5). References the bidder's escrow and the bid amount.
+-- ---------------------------------------------------------------------------
+template SealedBid
+  with
+    bidder : Party
+    seller : Party
+    amount : Decimal
+    escrow : ContractId Escrow
+    auctionDeadline : Time
+  where
+    signatory bidder
+    observer seller
+
+    -- Clearing-party consumes the winning bid.
+    choice AcceptWin : ContractId Escrow
+      controller seller
+      do pure escrow
+
+    -- Clearing-party consumes a losing bid.
+    choice Reject : ContractId Escrow
+      controller seller
+      do pure escrow
+
+    -- INV-3: a bidder may withdraw only BEFORE the deadline; never after.
+    choice Withdraw : ContractId Escrow
+      controller bidder
+      do
+        now <- getTime
+        assertMsg "Cannot withdraw a bid after the deadline" (now <= auctionDeadline)
+        pure escrow

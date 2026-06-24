@@ -1,0 +1,30 @@
+-- | Sotto shared types and the single bid-direction config point.
+module Sotto.Types where
+
+-- | What a 'Holding' represents. The asset block being auctioned vs. the cash
+--   bidders pay with. Both live on-ledger so settlement is a genuine DvP.
+data InstrumentType
+  = ASSET
+  | CASH
+  deriving (Eq, Show)
+
+-- | MODEL-06 — bid direction behind ONE constant.
+--
+--   * 'True'  = highest bid wins  (private OTC block trade — the default framing)
+--   * 'False' = lowest bid wins   (procurement reverse-auction)
+--
+--   Relabeling the entire product between these two modes is this one-line change.
+highestBidWins : Bool
+highestBidWins = True
+
+-- | Is @challenger@ a strictly better bid than @incumbent@ under the configured
+--   direction? Used by clearing to select the winner.
+beats : Decimal -> Decimal -> Bool
+beats challenger incumbent =
+  if highestBidWins then challenger > incumbent else challenger < incumbent
+
+-- | Does @amount@ satisfy the auction @reserve@? For a highest-bid auction the
+--   reserve is a floor; for a lowest-bid (procurement) auction it is a ceiling.
+meetsReserve : Decimal -> Decimal -> Bool
+meetsReserve amount reserve =
+  if highestBidWins then amount >= reserve else amount <= reserve
