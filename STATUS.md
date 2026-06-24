@@ -1,62 +1,68 @@
 # STATUS — Sotto
 
-_Last updated: 2026-06-24 — Phase 1 (Recon & Blocker Check) in progress._
+_Last updated: 2026-06-24 — Phases 1–2 complete (INV-1 hard gate GREEN). Phase 3 in progress._
 
 ## Version Pins (reproducibility)
 
 | Component | Version | Notes |
 |-----------|---------|-------|
 | OS (build) | Ubuntu 26.04 LTS (WSL2) | host: Windows 11 |
-| Host shell | PowerShell + Git Bash | WSL invoked via PowerShell (path-safe) |
-| JDK | _pending verify_ | Eclipse Temurin 17 (portable, `~/jdk17`) |
-| dpm | _pending verify_ | manual tarball install (`~/.dpm`) |
-| Daml SDK / Canton | _pending verify_ | resolved by `dpm install` per project `daml.yaml` |
-| Node | (present) | for Next.js frontend |
+| JDK | Eclipse Temurin **17.0.19+10** | portable, `~/jdk17` (no sudo) |
+| dpm (CLI) | **1.0.17** | `~/.dpm` (no sudo) |
+| dpm SDK / Daml / Canton | **3.5.1** | `daml-script`, `codegen`, etc. components 3.5.1 |
+| Node | present | for Next.js frontend (Phase 4) |
 | GSD | 1.40.0 | model_profile = inherit |
 
-> Pins are filled in as Phase 1 verifies each tool. **Reproducibility depends on these.**
+Env restored in any WSL shell via `source ~/.sotto-env.sh` (sets `JAVA_HOME` + `PATH`).
 
 ## What's Done
-- Guardrails: `model_profile: inherit` (verified); git attribution hook strips any Claude
-  co-author/`Generated with` trailer (verified on a real commit). Author = the user.
-- `.gitignore` (secrets + Daml/Canton/Node artifacts) and `.gitattributes` (LF) committed.
-- GSD planning scaffold: PROJECT.md, REQUIREMENTS.md, ROADMAP.md, STATE.md; root
-  DECISIONS.md + this STATUS.md.
-- Environment recon complete; no-sudo toolchain path chosen and authorized.
+- **Guardrails:** `model_profile: inherit` (verified via `init plan-phase`); git attribution
+  hook strips any Claude co-author/`Generated with` trailer (verified on a real commit);
+  author = the user.
+- **Phase 1 — Recon & toolchain:** JDK 17 + dpm 3.5.1 installed no-sudo in Ubuntu WSL2;
+  versions pinned. dpm `build`/`test`/`sandbox` confirmed working.
+- **Phase 2 — Daml model & privacy proof (INV-1 hard gate GREEN):** `Holding`, `Auction`,
+  `Escrow`, `SealedBid`, `BidInvitation` templates + `Clear` choice. **All 10 Daml Script
+  tests pass**, including `testInv1Privacy` (party-scoped query — the hard gate),
+  `testInv2AtomicDvp` + rollback, `testInv3Authorization`/`NoLateChanges`,
+  `testInv4LoserConfidentiality`, `testInv5NoExternalHolder`, and audit checks
+  (no-double-escrow, no-replay-clear). Bid direction behind one constant (`highestBidWins`).
+- GSD planning scaffold + DECISIONS.md committed.
 
-## In Progress
-- Phase 1: installing portable JDK 17 + dpm in Ubuntu WSL2 (no sudo).
+## In Progress (Phase 3)
+- `dpm sandbox` (local Canton + JSON Ledger API) launched; onboarding parties and driving
+  the E2E flow through the JSON Ledger API; re-asserting INV-1/INV-2 at the API layer with
+  party-scoped auth; `make demo` bootstrap.
 
 ## What's Left
-- Phase 1: verify toolchain, pin versions, trivial cross-party privacy check, JSON Ledger
-  API responds.
-- Phase 2: Daml model + `Clear`; INV-1..INV-5 green in Daml Script (INV-1 hard gate).
-- Phase 3: JSON Ledger API E2E flow; re-assert INV-1/INV-2 at API layer; `make demo`.
-- Phase 4: Next.js three-view UI; audit sweep; README + demo script.
+- Phase 3: JSON Ledger API client + integration tests (party-scoped); `make demo`.
+- Phase 4: Next.js three-view UI; full audit sweep; README + demo script.
 
 ## Known Issues / Risks
-- `dpm` on Ubuntu 26.04 (a very new release) is unverified — Phase 1 will confirm.
-- `/mnt/c` cross-filesystem Daml builds may be slow (acceptable; fallback documented in DECISIONS D-005).
-- Frontend (Windows) → `dpm sandbox` JSON API (WSL) will rely on WSL2 localhost forwarding.
+- Build warning: tests share the package with `daml-script` (cosmetic; DAR works on the
+  sandbox). Optional polish: split into model-only + test packages.
+- `/mnt/c` cross-filesystem builds are slower than WSL-native (acceptable; sandbox runtime
+  files kept in WSL home).
+- Frontend (Windows) → sandbox JSON API (WSL :7575) relies on WSL2 localhost forwarding.
 
 ## Blockers
-- None currently. (If `dpm` cannot run no-sudo on Ubuntu 26.04, that becomes the Phase 1
-  blocker per the handoff and will be recorded here with exact errors.)
+- None.
 
 ## Deviations from the Handoff (with blocking reasons)
-- **Canton Quickstart → dpm `sandbox`** — see DECISIONS.md **D-003**. No make/sudo/Docker
-  WSL-integration available; guarantees preserved.
+- **Canton Quickstart → dpm `sandbox`** — DECISIONS.md **D-003**. No make/sudo/Docker-WSL
+  integration available; all guarantees preserved (real Canton, JSON Ledger API, one
+  participant hosting many parties, atomic DvP, LocalNet-only).
 
 ## Human-Gated Follow-ups (out of scope this session)
-- DevNet/TestNet/MainNet deployment + validator IP whitelisting + onboarding-secret flow.
+- DevNet/TestNet/MainNet deploy + validator whitelisting + onboarding-secret flow.
 - Full OIDC authentication.
 - Splice Token Standard integration.
-- Commit-reveal privacy enhancement (would narrow even the clearing party's visibility).
+- Commit-reveal privacy enhancement.
 - Pitch deck and 3-minute video.
 
 ## How to Resume
-1. Open Ubuntu WSL2; `source ~/.sotto-env.sh` (sets JAVA_HOME + PATH for JDK/dpm).
+1. Ubuntu WSL2: `source ~/.sotto-env.sh`.
 2. `cd /mnt/c/Users/Ben/Desktop/B3NSAG3/Hackathons/Sotto`.
-3. Read `.planning/STATE.md` for current position, then continue the current phase.
-4. GSD: `gsd-sdk progress` shows status; plan with `/gsd-plan-phase <N>`, execute with
-   `/gsd-execute-phase <N>`.
+3. Daml: `cd daml && dpm build && dpm test` (re-runs INV-1..INV-5).
+4. Sandbox: `dpm sandbox --dar daml/.daml/dist/sotto-0.1.0.dar --json-api-port 7575`.
+5. Read `.planning/STATE.md` for position; continue Phase 3.

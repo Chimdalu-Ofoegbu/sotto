@@ -13,8 +13,8 @@ re-asserts privacy and atomicity so a leak at any layer fails the build. GSD pha
 
 ## Phases
 
-- [ ] **Phase 1: Recon & Environment Blocker Check** - Verify the no-sudo Daml toolchain and prove cross-party privacy works in this environment at all.
-- [ ] **Phase 2: Daml Model & Privacy Proof** - Implement templates + `Clear`; all five invariants green in Daml Script; INV-1 hard gate.
+- [x] **Phase 1: Recon & Environment Blocker Check** - Verify the no-sudo Daml toolchain and prove cross-party privacy works in this environment at all.
+- [x] **Phase 2: Daml Model & Privacy Proof** - Implement templates + `Clear`; all five invariants green in Daml Script; INV-1 hard gate.
 - [ ] **Phase 3: Backend, Escrow & E2E Multi-Party Flow** - JSON Ledger API drives the full list→settle cycle; re-assert INV-1/INV-2 at the API layer; `make demo`.
 - [ ] **Phase 4: Frontend, Audit Sweep & Live Demo** - Three authenticated views show the privacy contrast; full audit sweep; README + demo script.
 
@@ -79,7 +79,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Recon & Blocker Check | 0/1 | In progress | - |
-| 2. Daml Model & Privacy Proof | 0/TBD | Not started | - |
-| 3. Backend, Escrow & E2E | 0/TBD | Not started | - |
+| 1. Recon & Blocker Check | 1/1 | Complete | 2026-06-24 |
+| 2. Daml Model & Privacy Proof | 1/1 | Complete | 2026-06-24 |
+| 3. Backend, Escrow & E2E | 0/TBD | In progress | - |
 | 4. Frontend, Audit & Demo | 0/TBD | Not started | - |
