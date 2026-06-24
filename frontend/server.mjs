@@ -27,7 +27,7 @@ const readBody = (req) => new Promise((r) => { let d = ''; req.on('data', (c) =>
 const hhmmss = () => new Date().toISOString().slice(11, 19);
 const idOf = (party) => sc && party === sc.bidderA ? 'A' : (sc && party === sc.bidderB ? 'B' : null);
 
-async function publish(windowMs = 45000) {
+async function publish(windowMs = 75000) {
   const s = Date.now().toString().slice(-5);
   const bank = await L.allocateParty('Bank' + s);
   const seller = await L.allocateParty('Acme' + s);
@@ -72,7 +72,7 @@ async function placeShortBid(which, amount, escrowAmount) {
 
 async function stageScenario(name) {
   const book = BOOK[name] || BOOK.normal;
-  await publish(8000); // short window — bids are placed instantly server-side
+  await publish(12000); // short window — bids are placed instantly server-side; countdown stays visible
   if (name === 'rollback') {
     await placeBid('B', book.B);
     await placeShortBid('A', book.A, book.shortEscrow);
