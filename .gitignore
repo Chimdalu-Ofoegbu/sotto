@@ -25,6 +25,9 @@ participant-admin-token*
 canton-*.log
 *.canton.log
 
+# ── Generated runtime state ──────────────────────────────────────────────
+backend/parties.json
+
 # ── Node / Next.js ───────────────────────────────────────────────────────
 node_modules/
 .next/
