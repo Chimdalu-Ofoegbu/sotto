@@ -5,6 +5,36 @@ _Method: manual code review of the Daml model, the JSON-Ledger-API client, the n
 UI server, the build/run scripts, and git/secret hygiene; cross-checked against the Daml Script
 invariant suite (`make test`) and the live party-scoped API run (`bash scripts/demo.sh`)._
 
+## Remediation & re-audit (2026-06-25)
+
+All findings below were remediated and re-verified. The Daml fixes are proven by named
+Daml Script tests (**16/16 pass**, incl. 6 new security regression tests); the server fixes
+were verified live. The re-audit also found one *new* issue introduced by a fix (SEC-11) and
+fixed it.
+
+| Finding | Status | Fix & evidence |
+|---------|--------|----------------|
+| SEC-01 escrow custody | **Fixed** | `EscrowedCash` (issuer+bidder-signed) requires **both** bidder and clearing party to `Release` — neither can move it alone. `testSecEscrowLockNoDrain` |
+| SEC-02 unauth UI API | **Fixed** | `/api/*` require a per-run token (`?token=` / `x-sotto-token`); no token ⇒ 401. Verified live |
+| SEC-03 bid↔auction binding | **Fixed** | `SealedBid`/`EscrowedCash` carry `auctionCid`; `Clear` asserts each bid is for this auction. `testSecBidBoundToAuction` |
+| SEC-04 escrow reclaim | **Fixed** | `EscrowedCash.Reclaim` by the bidder after the clearing window. `testSecReclaimAfterGrace` |
+| SEC-05 withdraw orphan | **Fixed** | Bids are **binding** (no withdrawal — standard for sealed bids); reclaim after the window. `testSecClearWindowClosed` |
+| SEC-06 asset validation | **Fixed** | `Clear` asserts the delivered asset matches the advertised instrument+quantity+owner. `testSecAssetValidated` |
+| SEC-07 tie-break | **Fixed** | `SealedBid.submittedAt`; `Clear` breaks ties by earliest submission. `testSecTieBreakEarliest` |
+| SEC-08 deadline binding | **Fixed** | `BidInvitation` carries `auctionCid`; `PlaceSealedBid` uses the auction's own deadline |
+| SEC-09 static-file exposure | **Fixed** | Explicit allow-list (`/` + `/screens.js` only) — no arbitrary file reads |
+| SEC-10 supply chain | **Mitigated** | dpm version pinned (was "latest"); archives integrity-checked pre-extract; provider-signature pinning documented for production |
+| **SEC-11 orphaned-escrow DoS** *(found in re-audit)* | **Fixed** | The SEC-05 fix (`CancelByBidder`) could orphan a `SealedBid` from its escrow → a later `Clear` would roll back (griefing). Resolved by binding bids + **mutually-exclusive** clear `(deadline, deadline+grace]` and reclaim `> deadline+grace` windows, so an escrow can never be both reclaimed and cleared. `testSecClearWindowClosed` |
+
+**Residual / accepted (documented):**
+- *Malformed/underfunded bid:* an underfunded **winning** bid still rolls the clear back (handoff INV-2), so a griefer can force the clearing party to re-clear excluding bad bids. The clearing party validates its `Clear` inputs. **Low**, inherent to operator-driven clearing.
+- *Issuer visibility:* the cash/asset issuer (bank) inherently sees token amounts (issuer-signed `Holding` model, handoff-locked). It never sees a `SealedBid`, so **bidder-vs-bidder privacy is unaffected**. Info.
+- *LocalNet dev auth* (no JWT/OIDC) — handoff-scoped out of this session.
+
+**Verdict:** no open critical/high findings; the core claims (bidder-vs-bidder privacy, atomic
+DvP) remain proven, and funds-safety + integrity are now enforced by the model. The sections
+below are the original (pre-fix) analysis, retained for traceability.
+
 ## Trust model (read this first)
 
 Sotto is a **Canton LocalNet demo** whose claim is precise: **bidder-vs-bidder confidentiality

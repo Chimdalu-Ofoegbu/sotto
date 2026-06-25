@@ -44,10 +44,12 @@ Restore the build env in any WSL shell: `source ~/.sotto-env.sh`. Fresh install:
    (INV-1, INV-2, INV-4).
 4. **No off-ledger plaintext aggregation:** backend/UI use only single-party (`readAs`) scoped
    queries; no admin/omniscient reads.
-5. **Full security audit:** see `SECURITY-AUDIT.md`. Core claims **verified secure** (INV-1/2/3/5,
-   evidence-cited); no critical findings. Disclosed demo-trust-model limitations (escrow custodied
-   by the clearing party; unauthenticated local UI presenter) and production-hardening items
-   (bind bids↔auction, escrow reclaim, checksum pinning) are logged with remediation.
+5. **Full security audit + remediation:** see `SECURITY-AUDIT.md`. **All 10 findings fixed** (or
+   mitigated) and re-audited; the re-audit found + fixed one arising issue (SEC-11 orphaned-escrow
+   DoS). Model hardened to v2: true escrow lock (`EscrowedCash`, both-party release), auction-bound
+   bids, asset validation, submission-time tie-break, binding bids + bounded clear/reclaim windows.
+   Server: ledger API token-gated, static allow-list. Toolchain: pinned + integrity-checked.
+   **16/16 Daml Script tests pass** (incl. 6 security regression tests); live API + token gate verified.
 
 ## Known Issues / Notes
 - Resolved: model and tests are now **separate packages** (`daml/` model, `daml/test/`
