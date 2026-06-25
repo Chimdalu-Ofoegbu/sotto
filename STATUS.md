@@ -46,8 +46,10 @@ Restore the build env in any WSL shell: `source ~/.sotto-env.sh`. Fresh install:
    queries; no admin/omniscient reads.
 
 ## Known Issues / Notes
-- Build warning: tests share the package with `daml-script` (cosmetic; DAR works on the
-  sandbox). Optional polish: split into model-only + test packages.
+- Resolved: model and tests are now **separate packages** (`daml/` model, `daml/test/`
+  Daml-Script) — the deployed model DAR carries no `daml-script`, so `dpm build` is
+  warning-free. The client uses `#sotto` package-name template refs (+ a startup vetting
+  retry), so rebuilds don't require code changes.
 - The sandbox binds loopback (`127.0.0.1:7575`); the UI runs in WSL bound to `0.0.0.0:3000`
   and reaches the API server-side (see DECISIONS D-009).
 
