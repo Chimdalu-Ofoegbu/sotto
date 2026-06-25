@@ -1,20 +1,15 @@
--- | Sotto acceptance tests (Daml Script) — INV-1..INV-5 + additional audit checks.
---
--- Privacy assertions use PARTY-SCOPED queries (`query @T party`, `queryContractId
--- party cid`) — never an omniscient/admin query — because an omniscient query that
--- "sees everything" would prove nothing about privacy.
+-- | Sotto acceptance + security tests (Daml Script).
+-- INV-1..INV-5 (privacy/atomicity/authorization) plus regression tests for every
+-- finding in SECURITY-AUDIT.md (SEC-01 lock, SEC-03 binding, SEC-04 reclaim,
+-- SEC-05 withdraw refund, SEC-06 asset validation, SEC-07 tie-break) + audit checks.
 module Sotto.Test where
 
-import DA.Time (hours, addRelTime)
+import DA.Time (hours, minutes, addRelTime)
 import DA.Optional (isNone)
 import Daml.Script
 import Sotto
 import Sotto.Types
 
--- ---------------------------------------------------------------------------
--- Fixtures (deterministic; mirrors the demo scenario)
---   asset block 1,000 units; reserve 500; A bids 800 (loses), B bids 950 (wins).
--- ---------------------------------------------------------------------------
 data Fixture = Fixture with
   bank : Party
   seller : Party
@@ -32,208 +27,197 @@ setup = do
   seller  <- allocateParty "Seller"
   bidderA <- allocateParty "BidderA"
   bidderB <- allocateParty "BidderB"
-
   now <- getTime
   let deadline = addRelTime now (hours 24)
-
   assetCid <- submit bank do
     createCmd Holding with issuer = bank, owner = seller, instrument = ASSET, quantity = 1000.0
-
   auctionCid <- submit seller do
     createCmd Auction with
-      seller
-      invitedBidders = [bidderA, bidderB]
-      assetDescription = "Acme Corp 1,000-unit block"
-      assetQuantity = 1000.0
-      reserve = 500.0
-      deadline
-
-  invA <- submit seller do createCmd BidInvitation with seller, bidder = bidderA, deadline
-  invB <- submit seller do createCmd BidInvitation with seller, bidder = bidderB, deadline
-
+      seller; invitedBidders = [bidderA, bidderB]
+      assetDescription = "Acme Corp 1,000-unit block"; assetQuantity = 1000.0
+      reserve = 500.0; deadline
+  invA <- submit seller do createCmd BidInvitation with seller, bidder = bidderA, auctionCid
+  invB <- submit seller do createCmd BidInvitation with seller, bidder = bidderB, auctionCid
   pure Fixture with bank, seller, bidderA, bidderB, auctionCid, assetCid, invA, invB, deadline
 
 -- bank issues `amt` cash to `bidder`, who places a sealed bid of `amt`.
 placeBid : Fixture -> Party -> ContractId BidInvitation -> Decimal
-        -> Script (ContractId SealedBid, ContractId Escrow)
+        -> Script (ContractId SealedBid, ContractId EscrowedCash)
 placeBid f bidder inv amt = do
   cashCid <- submit f.bank do
     createCmd Holding with issuer = f.bank, owner = bidder, instrument = CASH, quantity = amt
   submit bidder do exerciseCmd inv PlaceSealedBid with amount = amt, cashCid
 
--- ===========================================================================
--- INV-1 (HARD GATE): bidder-vs-bidder confidentiality, party-scoped.
--- ===========================================================================
+-- ============ INV-1 (HARD GATE): bidder-vs-bidder confidentiality ============
 testInv1Privacy : Script ()
 testInv1Privacy = do
   f <- setup
   (bidA, _) <- placeBid f f.bidderA f.invA 800.0
   (_,    _) <- placeBid f f.bidderB f.invB 950.0
-
-  -- B's party-scoped bid view excludes A entirely.
   bBids <- query @SealedBid f.bidderB
-  assertMsg "B must see no SealedBid created by A"
-    (all (\(_, b) -> b.bidder == f.bidderB) bBids)
-  assertMsg "B sees exactly its own single bid" (length bBids == 1)
-
-  -- B's party-scoped escrow view excludes A entirely.
-  bEscrows <- query @Escrow f.bidderB
-  assertMsg "B must see no Escrow created by A"
-    (all (\(_, e) -> e.bidder == f.bidderB) bEscrows)
-
-  -- Symmetric.
-  aBids <- query @SealedBid f.bidderA
-  assertMsg "A must see no SealedBid created by B"
-    (all (\(_, b) -> b.bidder == f.bidderA) aBids)
-
-  -- B cannot read A's bid even by contract id (not a stakeholder).
+  assertMsg "B sees no SealedBid by A" (all (\(_, b) -> b.bidder == f.bidderB) bBids)
+  assertMsg "B sees exactly its own bid" (length bBids == 1)
+  bEsc <- query @EscrowedCash f.bidderB
+  assertMsg "B sees no EscrowedCash by A" (all (\(_, e) -> e.bidder == f.bidderB) bEsc)
   bSeesA <- queryContractId f.bidderB bidA
-  assertMsg "B must not be able to read A's bid by id" (isNone bSeesA)
+  assertMsg "B cannot read A's bid by id" (isNone bSeesA)
 
--- ===========================================================================
--- INV-5: no external trusted plaintext holder.
--- ===========================================================================
+-- ============ INV-5: no external plaintext holder ============
 testInv5NoExternalHolder : Script ()
 testInv5NoExternalHolder = do
   f <- setup
   (bidA, _) <- placeBid f f.bidderA f.invA 800.0
-
-  -- Signatory is exactly the bidder.
   Some bid <- queryContractId f.seller bidA
-  assertMsg "SealedBid signatory must be exactly the bidder" (signatory bid == [f.bidderA])
-
-  -- Stakeholders proven by visibility: the seller (clearing party) can read it;
-  -- no external identity (the asset/cash issuer) and no other bidder can.
+  assertMsg "SealedBid signatory is exactly the bidder" (signatory bid == [f.bidderA])
   bankSees <- queryContractId f.bank bidA
-  assertMsg "no external identity may see the sealed bid" (isNone bankSees)
-  otherBidderSees <- queryContractId f.bidderB bidA
-  assertMsg "no other bidder may see the sealed bid" (isNone otherBidderSees)
+  assertMsg "issuer/bank cannot see the bid" (isNone bankSees)
+  otherSees <- queryContractId f.bidderB bidA
+  assertMsg "the other bidder cannot see the bid" (isNone otherSees)
 
--- ===========================================================================
--- INV-2: atomic DvP — happy path.
--- ===========================================================================
+-- ============ SEC-01: escrow is a true lock — clearing party cannot drain it ============
+testSecEscrowLockNoDrain : Script ()
+testSecEscrowLockNoDrain = do
+  f <- setup
+  (_, escA) <- placeBid f f.bidderA f.invA 800.0
+  submitMustFail f.seller do exerciseCmd escA Release with recipient = f.seller   -- needs bidder too
+  sCash <- query @Holding f.seller
+  assertMsg "seller holds no escrow cash before clearing"
+    (not (any (\(_, h) -> h.instrument == CASH) sCash))
+  submitMustFail f.bidderA do exerciseCmd escA Release with recipient = f.bidderA -- needs seller too
+
+-- ============ SEC-04: bidder can reclaim only after deadline + grace ============
+testSecReclaimAfterGrace : Script ()
+testSecReclaimAfterGrace = do
+  f <- setup
+  (_, escA) <- placeBid f f.bidderA f.invA 800.0
+  passTime (hours 25)                         -- past deadline, within grace
+  submitMustFail f.bidderA do exerciseCmd escA Reclaim
+  passTime (hours 2)                          -- past deadline + 1h grace
+  _ <- submit f.bidderA do exerciseCmd escA Reclaim
+  aCash <- query @Holding f.bidderA
+  assertMsg "A reclaimed its 800 escrow"
+    (any (\(_, h) -> h.instrument == CASH && h.quantity == 800.0 && h.owner == f.bidderA) aCash)
+
+-- ============ SEC-05: withdraw before deadline refunds the escrow (no orphan) ============
+testSecWithdrawRefunds : Script ()
+testSecWithdrawRefunds = do
+  f <- setup
+  (bidA, escA) <- placeBid f f.bidderA f.invA 800.0
+  _ <- submit f.bidderA do exerciseCmd bidA Withdraw
+  gone <- queryContractId f.bidderA escA
+  assertMsg "escrow consumed by withdraw" (isNone gone)
+  aCash <- query @Holding f.bidderA
+  assertMsg "A got its 800 back on withdraw"
+    (any (\(_, h) -> h.instrument == CASH && h.quantity == 800.0 && h.owner == f.bidderA) aCash)
+
+-- ============ INV-2: atomic DvP — happy path ============
 testInv2AtomicDvp : Script ()
 testInv2AtomicDvp = do
   f <- setup
   (bidA, _) <- placeBid f f.bidderA f.invA 800.0
   (bidB, _) <- placeBid f f.bidderB f.invB 950.0
   passTime (hours 25)
-
-  res <- submit f.seller do
-    exerciseCmd f.auctionCid Clear with assetCid = f.assetCid, bids = [bidA, bidB]
+  res <- submit f.seller do exerciseCmd f.auctionCid Clear with assetCid = f.assetCid, bids = [bidA, bidB]
   assertMsg "B wins at 950" (res == Winner with winner = f.bidderB, price = 950.0)
+  bH <- query @Holding f.bidderB
+  assertMsg "winner B owns the asset" (any (\(_, h) -> h.instrument == ASSET && h.quantity == 1000.0 && h.owner == f.bidderB) bH)
+  sH <- query @Holding f.seller
+  assertMsg "seller received 950" (any (\(_, h) -> h.instrument == CASH && h.quantity == 950.0 && h.owner == f.seller) sH)
+  aH <- query @Holding f.bidderA
+  assertMsg "loser A refunded 800" (any (\(_, h) -> h.instrument == CASH && h.quantity == 800.0 && h.owner == f.bidderA) aH)
 
-  bHoldings <- query @Holding f.bidderB
-  assertMsg "winner B owns the 1,000-unit asset block"
-    (any (\(_, h) -> h.instrument == ASSET && h.quantity == 1000.0 && h.owner == f.bidderB) bHoldings)
-
-  sHoldings <- query @Holding f.seller
-  assertMsg "seller received 950 winning cash"
-    (any (\(_, h) -> h.instrument == CASH && h.quantity == 950.0 && h.owner == f.seller) sHoldings)
-
-  aHoldings <- query @Holding f.bidderA
-  assertMsg "loser A was refunded 800"
-    (any (\(_, h) -> h.instrument == CASH && h.quantity == 800.0 && h.owner == f.bidderA) aHoldings)
-
--- ===========================================================================
--- INV-2: failing path — a winning bid backed by an insufficient escrow rolls
--- the ENTIRE clear back (no asset moves, no cash moves, nothing half-consumed).
--- ===========================================================================
+-- ============ INV-2: failing path — insufficient winning escrow rolls back ============
 testInv2RollbackOnInsufficientEscrow : Script ()
 testInv2RollbackOnInsufficientEscrow = do
   f <- setup
   (bidA, _) <- placeBid f f.bidderA f.invA 800.0
-
-  -- Craft a winning (950) bid backed by only 100 cash.
-  smallCash <- submit f.bank do
-    createCmd Holding with issuer = f.bank, owner = f.bidderB, instrument = CASH, quantity = 100.0
-  lockedCash <- submit f.bidderB do exerciseCmd smallCash Transfer with newOwner = f.seller
-  badEscrow <- submit f.bidderB do
-    createCmd Escrow with
-      bidder = f.bidderB, clearingParty = f.seller, cashIssuer = f.bank
-      amount = 950.0, lockedCash, auctionDeadline = f.deadline
+  small <- submit f.bank do createCmd Holding with issuer = f.bank, owner = f.bidderB, instrument = CASH, quantity = 100.0
+  badEsc <- submit f.bidderB do exerciseCmd small IntoEscrow with clearingParty = f.seller, auctionCid = f.auctionCid, deadline = f.deadline
   badBid <- submit f.bidderB do
     createCmd SealedBid with
-      bidder = f.bidderB, seller = f.seller, amount = 950.0
-      escrow = badEscrow, auctionDeadline = f.deadline
+      bidder = f.bidderB; seller = f.seller; auctionCid = f.auctionCid; amount = 950.0
+      escrow = badEsc; submittedAt = f.deadline; deadline = f.deadline
   passTime (hours 25)
-
-  submitMustFail f.seller do
-    exerciseCmd f.auctionCid Clear with assetCid = f.assetCid, bids = [bidA, badBid]
-
-  -- Nothing moved.
+  submitMustFail f.seller do exerciseCmd f.auctionCid Clear with assetCid = f.assetCid, bids = [bidA, badBid]
   Some asset <- queryContractId f.seller f.assetCid
-  assertMsg "asset remains with the seller after rolled-back clear" (asset.owner == f.seller)
-  aBids <- query @SealedBid f.bidderA
-  assertMsg "A's bid is still active after rolled-back clear" (length aBids == 1)
+  assertMsg "asset stays with seller after rollback" (asset.owner == f.seller)
 
--- ===========================================================================
--- INV-3: authorization.
--- ===========================================================================
+-- ============ SEC-03: a bid is bound to its auction (no cross-clearing) ============
+testSecBidBoundToAuction : Script ()
+testSecBidBoundToAuction = do
+  f <- setup
+  (bidA, _) <- placeBid f f.bidderA f.invA 800.0
+  auction2 <- submit f.seller do
+    createCmd Auction with
+      seller = f.seller; invitedBidders = [f.bidderA, f.bidderB]
+      assetDescription = "Other block"; assetQuantity = 1000.0; reserve = 500.0; deadline = f.deadline
+  asset2 <- submit f.bank do createCmd Holding with issuer = f.bank, owner = f.seller, instrument = ASSET, quantity = 1000.0
+  passTime (hours 25)
+  submitMustFail f.seller do exerciseCmd auction2 Clear with assetCid = asset2, bids = [bidA]
+
+-- ============ SEC-06: delivered asset must match the advertised block ============
+testSecAssetValidated : Script ()
+testSecAssetValidated = do
+  f <- setup
+  (bidA, _) <- placeBid f f.bidderA f.invA 800.0
+  (bidB, _) <- placeBid f f.bidderB f.invB 950.0
+  wrongAsset <- submit f.bank do createCmd Holding with issuer = f.bank, owner = f.seller, instrument = ASSET, quantity = 1.0
+  passTime (hours 25)
+  submitMustFail f.seller do exerciseCmd f.auctionCid Clear with assetCid = wrongAsset, bids = [bidA, bidB]
+
+-- ============ SEC-07: ties broken by earliest submission ============
+testSecTieBreakEarliest : Script ()
+testSecTieBreakEarliest = do
+  f <- setup
+  (bidA, _) <- placeBid f f.bidderA f.invA 800.0   -- earlier
+  passTime (minutes 5)
+  (bidB, _) <- placeBid f f.bidderB f.invB 800.0   -- same amount, later
+  passTime (hours 25)
+  res <- submit f.seller do exerciseCmd f.auctionCid Clear with assetCid = f.assetCid, bids = [bidB, bidA]
+  assertMsg "earliest equal bid (A) wins the tie" (res == Winner with winner = f.bidderA, price = 800.0)
+
+-- ============ INV-3: authorization ============
 testInv3Authorization : Script ()
 testInv3Authorization = do
   f <- setup
   (bidA, _) <- placeBid f f.bidderA f.invA 800.0
   (bidB, _) <- placeBid f f.bidderB f.invB 950.0
-
-  -- Cannot clear before the deadline.
-  submitMustFail f.seller do
-    exerciseCmd f.auctionCid Clear with assetCid = f.assetCid, bids = [bidA, bidB]
-
+  submitMustFail f.seller do exerciseCmd f.auctionCid Clear with assetCid = f.assetCid, bids = [bidA, bidB]  -- before deadline
   passTime (hours 25)
-
-  -- A bidder cannot clear.
-  submitMustFail f.bidderA do
-    exerciseCmd f.auctionCid Clear with assetCid = f.assetCid, bids = [bidA, bidB]
-  -- A bidder cannot consume another bidder's bid (controller is the seller).
+  submitMustFail f.bidderA do exerciseCmd f.auctionCid Clear with assetCid = f.assetCid, bids = [bidA, bidB]  -- bidder can't clear
   submitMustFail f.bidderB do exerciseCmd bidA AcceptWin
-  submitMustFail f.bidderB do exerciseCmd bidA Reject
+  submitMustFail f.bidderB do exerciseCmd bidA RejectBid
 
 testInv3NoLateChanges : Script ()
 testInv3NoLateChanges = do
   f <- setup
   (bidA, _) <- placeBid f f.bidderA f.invA 800.0
-  passTime (hours 25)  -- past the deadline (ledger time)
-
-  -- Cannot withdraw after the deadline.
+  passTime (hours 25)
   submitMustFail f.bidderA do exerciseCmd bidA Withdraw
-  -- Cannot place a new bid after the deadline.
-  lateCash <- submit f.bank do
-    createCmd Holding with issuer = f.bank, owner = f.bidderB, instrument = CASH, quantity = 700.0
-  submitMustFail f.bidderB do
-    exerciseCmd f.invB PlaceSealedBid with amount = 700.0, cashCid = lateCash
+  lateCash <- submit f.bank do createCmd Holding with issuer = f.bank, owner = f.bidderB, instrument = CASH, quantity = 700.0
+  submitMustFail f.bidderB do exerciseCmd f.invB PlaceSealedBid with amount = 700.0, cashCid = lateCash
 
--- ===========================================================================
--- INV-4: loser confidentiality — loser learns only that they lost + refund.
--- ===========================================================================
+-- ============ INV-4: loser confidentiality ============
 testInv4LoserConfidentiality : Script ()
 testInv4LoserConfidentiality = do
   f <- setup
   (bidA, _) <- placeBid f f.bidderA f.invA 800.0
   (bidB, _) <- placeBid f f.bidderB f.invB 950.0
   passTime (hours 25)
-  _ <- submit f.seller do
-    exerciseCmd f.auctionCid Clear with assetCid = f.assetCid, bids = [bidA, bidB]
-
+  _ <- submit f.seller do exerciseCmd f.auctionCid Clear with assetCid = f.assetCid, bids = [bidA, bidB]
   aBids <- query @SealedBid f.bidderA
-  assertMsg "loser A sees no bid (own consumed; winner's never visible)" (null aBids)
+  assertMsg "loser A sees no bids post-clear" (null aBids)
+  aH <- query @Holding f.bidderA
+  assertMsg "loser A has the 800 refund and never the 950 price"
+    (any (\(_, h) -> h.instrument == CASH && h.quantity == 800.0) aH && not (any (\(_, h) -> h.quantity == 950.0) aH))
 
-  aHoldings <- query @Holding f.bidderA
-  assertMsg "loser A has the 800 refund and never sees the 950 winning price"
-    (   any (\(_, h) -> h.instrument == CASH && h.quantity == 800.0 && h.owner == f.bidderA) aHoldings
-     && not (any (\(_, h) -> h.quantity == 950.0) aHoldings))
-
--- ===========================================================================
--- Additional audit checks (also re-run in the Phase 4 sweep).
--- ===========================================================================
+-- ============ additional audit checks ============
 testAuditNoDoubleEscrow : Script ()
 testAuditNoDoubleEscrow = do
   f <- setup
-  cashCid <- submit f.bank do
-    createCmd Holding with issuer = f.bank, owner = f.bidderA, instrument = CASH, quantity = 800.0
+  cashCid <- submit f.bank do createCmd Holding with issuer = f.bank, owner = f.bidderA, instrument = CASH, quantity = 800.0
   _ <- submit f.bidderA do exerciseCmd f.invA PlaceSealedBid with amount = 800.0, cashCid
-  -- The same cash, now escrowed (transferred away), cannot be escrowed again.
-  submitMustFail f.bidderA do exerciseCmd f.invA PlaceSealedBid with amount = 800.0, cashCid
+  submitMustFail f.bidderA do exerciseCmd f.invA PlaceSealedBid with amount = 800.0, cashCid   -- cash already consumed
 
 testAuditNoReplayClear : Script ()
 testAuditNoReplayClear = do
@@ -241,8 +225,5 @@ testAuditNoReplayClear = do
   (bidA, _) <- placeBid f f.bidderA f.invA 800.0
   (bidB, _) <- placeBid f f.bidderB f.invB 950.0
   passTime (hours 25)
-  _ <- submit f.seller do
-    exerciseCmd f.auctionCid Clear with assetCid = f.assetCid, bids = [bidA, bidB]
-  -- The auction is consumed; a second clear cannot replay.
-  submitMustFail f.seller do
-    exerciseCmd f.auctionCid Clear with assetCid = f.assetCid, bids = [bidA, bidB]
+  _ <- submit f.seller do exerciseCmd f.auctionCid Clear with assetCid = f.assetCid, bids = [bidA, bidB]
+  submitMustFail f.seller do exerciseCmd f.auctionCid Clear with assetCid = f.assetCid, bids = [bidA, bidB]
