@@ -1,31 +1,38 @@
-// Sotto UI server (zero-dep) — now LIVE on Canton.
+// Sotto UI server (zero-dep) — LIVE on Canton.
 //
 // Serves the Claude Design UI and drives the real flow through the JSON Ledger API
-// (via ../backend/ledger.mjs). The three POV views are computed from genuine
-// PARTY-SCOPED ledger reads, so the privacy contrast the UI shows is protocol-
-// enforced by Canton, not simulated. Runs in WSL next to the sandbox (server-side
-// calls hit 127.0.0.1:7575); the browser reaches this server on 0.0.0.0:3000.
+// (via ../backend/ledger.mjs). Each POV view is computed ONLY from that party's own
+// PARTY-SCOPED ledger reads, so the privacy contrast is protocol-enforced.
+//
+// Security (audit remediation):
+//  - SEC-02: ledger-touching endpoints (/api/*) require a per-run token (printed at
+//    startup, passed via ?token= / x-sotto-token). An unauthenticated network caller
+//    cannot drive the ledger or read a POV.
+//  - SEC-09: static files are an explicit allow-list (no arbitrary file reads).
 import { createServer } from 'node:http';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { randomBytes } from 'node:crypto';
 import * as L from '../backend/ledger.mjs';
 
 const PORT = process.env.PORT || 3000;
+const TOKEN = process.env.SOTTO_TOKEN || randomBytes(16).toString('hex');
 const DIR = (f) => fileURLToPath(new URL('./' + f, import.meta.url));
+const STATIC = { '/screens.js': ['screens.js', 'text/javascript'] };   // SEC-09: allow-list
 const ASSET_FACE = 25000000, RESERVE = 24600000;
-// Scenario bid book (matches the design's numbers).
 const BOOK = {
   normal:   { A: 24812500, B: 24790000 },
   single:   { A: 24812500, B: null },
   tie:      { A: 24800000, B: 24800000 },
   rollback: { A: 24812500, B: 24790000, shortBidder: 'A', shortEscrow: 24650000 },
 };
-let sc = null; // live scenario state
+let sc = null;
 
 const send = (res, code, obj) => { res.writeHead(code, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(obj)); };
 const readBody = (req) => new Promise((r) => { let d = ''; req.on('data', (c) => (d += c)); req.on('end', () => { try { r(d ? JSON.parse(d) : {}); } catch { r({}); } }); });
 const hhmmss = () => new Date().toISOString().slice(11, 19);
 const idOf = (party) => sc && party === sc.bidderA ? 'A' : (sc && party === sc.bidderB ? 'B' : null);
+const authed = (req, url) => (req.headers['x-sotto-token'] || url.searchParams.get('token')) === TOKEN;
 
 async function publish(windowMs = 75000) {
   const s = Date.now().toString().slice(-5);
@@ -40,8 +47,8 @@ async function publish(windowMs = 75000) {
     seller, invitedBidders: [bidderA, bidderB],
     assetDescription: 'U.S. Treasury Bill · 26-week', assetQuantity: String(ASSET_FACE), reserve: String(RESERVE), deadline,
   });
-  const invA = await L.create(seller, 'BidInvitation', { seller, bidder: bidderA, deadline });
-  const invB = await L.create(seller, 'BidInvitation', { seller, bidder: bidderB, deadline });
+  const invA = await L.create(seller, 'BidInvitation', { seller, bidder: bidderA, auctionCid });
+  const invB = await L.create(seller, 'BidInvitation', { seller, bidder: bidderB, auctionCid });
   sc = { bank, seller, bidderA, bidderB, assetCid, auctionCid, invA, invB, deadlineMs, cleared: false, rollback: false, winnerId: null, times: {}, bidAmt: {} };
   return sc;
 }
@@ -57,29 +64,23 @@ async function placeBid(which, amount) {
   sc.times[which] = hhmmss(); sc.bidAmt[which] = Number(amount);
 }
 
-// Underfunded bid (short-escrow scenario): build SealedBid + Escrow directly so the
-// locked cash is less than the bid. Clearing to it will roll the whole tx back (INV-2).
+// Underfunded bid (short-escrow scenario): escrow less than the bid by bypassing the
+// exact-amount check, so clearing to it fails AcceptWin's coverage assert and rolls back.
 async function placeShortBid(which, amount, escrowAmount) {
   const bidder = which === 'A' ? sc.bidderA : sc.bidderB;
-  // Bank issues the (insufficient) locked cash directly to the clearing party so we get a
-  // valid cid the Escrow can reference; the locked amount is deliberately < the bid amount,
-  // so clearing to this bid will fail Settle's check and roll the whole transaction back.
-  const lockedCash = await L.create(sc.bank, 'Holding', { issuer: sc.bank, owner: sc.seller, instrument: 'CASH', quantity: String(escrowAmount) });
-  const esc = await L.create(bidder, 'Escrow', { bidder, clearingParty: sc.seller, cashIssuer: sc.bank, amount: String(amount), lockedCash, auctionDeadline: new Date(sc.deadlineMs).toISOString() });
-  await L.create(bidder, 'SealedBid', { bidder, seller: sc.seller, amount: String(amount), escrow: esc, auctionDeadline: new Date(sc.deadlineMs).toISOString() });
+  const deadline = new Date(sc.deadlineMs).toISOString();
+  const smallCash = await L.create(sc.bank, 'Holding', { issuer: sc.bank, owner: bidder, instrument: 'CASH', quantity: String(escrowAmount) });
+  const tx = await L.exercise(bidder, 'Holding', smallCash, 'IntoEscrow', { clearingParty: sc.seller, auctionCid: sc.auctionCid, deadline });
+  const esc = L.createdOf(tx, 'EscrowedCash')[0];
+  await L.create(bidder, 'SealedBid', { bidder, seller: sc.seller, auctionCid: sc.auctionCid, amount: String(amount), escrow: esc, submittedAt: deadline, deadline });
   sc.times[which] = hhmmss(); sc.bidAmt[which] = Number(amount);
 }
 
 async function stageScenario(name) {
   const book = BOOK[name] || BOOK.normal;
-  await publish(12000); // short window — bids are placed instantly server-side; countdown stays visible
-  if (name === 'rollback') {
-    await placeBid('B', book.B);
-    await placeShortBid('A', book.A, book.shortEscrow);
-  } else {
-    if (book.A) await placeBid('A', book.A);
-    if (book.B) await placeBid('B', book.B);
-  }
+  await publish(12000);
+  if (name === 'rollback') { await placeBid('B', book.B); await placeShortBid('A', book.A, book.shortEscrow); }
+  else { if (book.A) await placeBid('A', book.A); if (book.B) await placeBid('B', book.B); }
   sc.scenarioName = name;
   return sc;
 }
@@ -97,30 +98,23 @@ async function clear() {
       const h = await L.activeContracts(p, 'Holding');
       if (h.some((x) => x.payload.instrument === 'ASSET' && x.payload.owner === p)) sc.winnerId = which;
     }
-  } catch (e) {
-    sc.cleared = true; sc.rollback = true; // atomic: nothing moved
-  }
+  } catch (e) { sc.cleared = true; sc.rollback = true; } // atomic: nothing moved
   return sc;
 }
 
-// ---- per-POV view-model, computed ONLY from this party's own scoped reads ----
-// This is where UI-layer privacy is enforced: a bidder's response is built solely
-// from contracts that bidder is a stakeholder of, so it cannot contain the other
-// bidder's bid, nor (for a loser) the winner's identity or the cleared price.
+// per-POV view-model from this party's own scoped reads (UI-layer privacy).
 async function viewModel(as) {
   if (!sc) return { ready: true, phase: 'draft' };
   const party = as === 'seller' ? sc.seller : as === 'A' ? sc.bidderA : sc.bidderB;
   const passed = Date.now() >= sc.deadlineMs;
   const [sb, esc, hold] = await Promise.all([
-    L.activeContracts(party, 'SealedBid'), L.activeContracts(party, 'Escrow'), L.activeContracts(party, 'Holding'),
+    L.activeContracts(party, 'SealedBid'), L.activeContracts(party, 'EscrowedCash'), L.activeContracts(party, 'Holding'),
   ]);
   const escById = {}; for (const e of esc) { const id = idOf(e.payload.bidder); if (id) escById[id] = e.payload; }
   const seen = { A: null, B: null };
   for (const b of sb) {
     const id = idOf(b.payload.bidder); if (!id) continue;
-    let escrowVal = escById[id] ? Number(escById[id].amount) : Number(b.payload.amount);
-    // Only the seller owns the locked cash, so only the seller can detect a short escrow.
-    if (as === 'seller' && escById[id]) { const lc = hold.find((x) => x.contractId === escById[id].lockedCash); if (lc) escrowVal = Number(lc.payload.quantity); }
+    const escrowVal = escById[id] ? Number(escById[id].quantity) : Number(b.payload.amount);
     seen[id] = { amount: Number(b.payload.amount), escrow: escrowVal, t: sc.times[id] || '' };
   }
   const phase = sc.cleared ? (sc.rollback ? 'rollback' : 'settled') : (passed ? 'locked' : 'open');
@@ -134,8 +128,6 @@ async function viewModel(as) {
     vm.winnerId = sc.cleared && !sc.rollback ? sc.winnerId : null;
     vm.winnerAmount = vm.winnerId && sc.bidAmt[vm.winnerId] != null ? sc.bidAmt[vm.winnerId] : null;
   } else {
-    // Bidder need-to-know only: their own bid amount (their data), and win/lose from
-    // whether THEY now hold the asset. Never the other bid, winner id, or cleared price.
     vm.bidPlaced = sc.bidAmt[as] != null;
     vm.myBidAmount = vm.bidPlaced ? sc.bidAmt[as] : null;
     vm.myIsWinner = sc.cleared && !sc.rollback && ownsAsset;
@@ -148,18 +140,24 @@ createServer(async (req, res) => {
   try {
     const url = new URL(req.url, 'http://x');
     if (req.method === 'GET' && url.pathname === '/') { res.writeHead(200, { 'Content-Type': 'text/html' }); res.end(readFileSync(DIR('index.html'))); return; }
-    if (req.method === 'GET' && /^\/[\w.-]+\.(js|css|svg|png)$/.test(url.pathname)) {
-      const types = { '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png' };
-      const ext = url.pathname.slice(url.pathname.lastIndexOf('.'));
-      try { res.writeHead(200, { 'Content-Type': types[ext] || 'application/octet-stream' }); res.end(readFileSync(DIR(url.pathname.slice(1)))); } catch { res.writeHead(404); res.end('nf'); }
+    if (req.method === 'GET' && STATIC[url.pathname]) {
+      const [file, type] = STATIC[url.pathname];
+      try { res.writeHead(200, { 'Content-Type': type }); res.end(readFileSync(DIR(file))); } catch { res.writeHead(404); res.end('nf'); }
       return;
     }
-    if (req.method === 'GET' && url.pathname === '/api/state') return send(res, 200, await viewModel(url.searchParams.get('as') || 'seller'));
-    if (req.method === 'POST' && url.pathname === '/api/publish') { await publish(); return send(res, 200, { ok: true }); }
-    if (req.method === 'POST' && url.pathname === '/api/bid') { const b = await readBody(req); await placeBid(b.which, b.amount); return send(res, 200, { ok: true }); }
-    if (req.method === 'POST' && url.pathname === '/api/clear') { await clear(); return send(res, 200, { ok: true }); }
-    if (req.method === 'POST' && url.pathname === '/api/scenario') { const b = await readBody(req); await stageScenario(b.name); return send(res, 200, { ok: true }); }
-    if (req.method === 'POST' && url.pathname === '/api/reset') { sc = null; return send(res, 200, { ok: true }); }
+    // SEC-02: every ledger-touching endpoint requires the per-run token.
+    if (url.pathname.startsWith('/api/')) {
+      if (!authed(req, url)) return send(res, 401, { error: 'unauthorized — open the URL printed in the server console (it carries ?token=…)' });
+      if (req.method === 'GET' && url.pathname === '/api/state') return send(res, 200, await viewModel(url.searchParams.get('as') || 'seller'));
+      if (req.method === 'POST' && url.pathname === '/api/publish') { await publish(); return send(res, 200, { ok: true }); }
+      if (req.method === 'POST' && url.pathname === '/api/bid') { const b = await readBody(req); await placeBid(b.which, b.amount); return send(res, 200, { ok: true }); }
+      if (req.method === 'POST' && url.pathname === '/api/clear') { await clear(); return send(res, 200, { ok: true }); }
+      if (req.method === 'POST' && url.pathname === '/api/scenario') { const b = await readBody(req); await stageScenario(b.name); return send(res, 200, { ok: true }); }
+      if (req.method === 'POST' && url.pathname === '/api/reset') { sc = null; return send(res, 200, { ok: true }); }
+    }
     res.writeHead(404); res.end('not found');
   } catch (e) { send(res, 400, { error: String(e.message || e) }); }
-}).listen(PORT, '0.0.0.0', () => console.log(`Sotto UI (LIVE on Canton) on http://localhost:${PORT}`));
+}).listen(PORT, '0.0.0.0', () => {
+  console.log(`Sotto UI (LIVE on Canton). Open:`);
+  console.log(`  http://localhost:${PORT}/?token=${TOKEN}`);
+});

@@ -48,8 +48,8 @@ const qty = (h) => Number(h.payload.quantity);
     assetDescription: 'Acme Corp 1,000-unit block', assetQuantity: '1000.0',
     reserve: '500.0', deadline,
   });
-  const invA = await L.create(seller, 'BidInvitation', { seller, bidder: bidderA, deadline });
-  const invB = await L.create(seller, 'BidInvitation', { seller, bidder: bidderB, deadline });
+  const invA = await L.create(seller, 'BidInvitation', { seller, bidder: bidderA, auctionCid });
+  const invB = await L.create(seller, 'BidInvitation', { seller, bidder: bidderB, auctionCid });
 
   // 4) Sealed bids (each escrows its cash atomically).
   log('\n[4] Bidders submit sealed bids (A=800, B=950)...');
@@ -61,8 +61,8 @@ const qty = (h) => Number(h.payload.quantity);
   const bBids = await L.activeContracts(bidderB, 'SealedBid');
   assert(bBids.length === 1, "B's scoped query returns exactly its own 1 bid");
   assert(bBids.every((c) => c.payload.bidder === bidderB), "B's view contains NO SealedBid created by A");
-  const bEsc = await L.activeContracts(bidderB, 'Escrow');
-  assert(bEsc.every((c) => c.payload.bidder === bidderB), "B's view contains NO Escrow created by A");
+  const bEsc = await L.activeContracts(bidderB, 'EscrowedCash');
+  assert(bEsc.every((c) => c.payload.bidder === bidderB), "B's view contains NO EscrowedCash created by A");
   const aBids = await L.activeContracts(bidderA, 'SealedBid');
   assert(aBids.every((c) => c.payload.bidder === bidderA), "A's view contains NO SealedBid created by B");
   // No bid amount of the other party appears anywhere in B's scoped view.

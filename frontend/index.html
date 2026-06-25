@@ -78,7 +78,8 @@ function ranked(){
 }
 
 //=== backend plumbing ===
-const api=(m,u,b)=>fetch(u,{method:m,headers:{'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined}).then(r=>r.json());
+const TOKEN = new URLSearchParams(location.search).get('token') || '';
+const api=(m,u,b)=>fetch(u,{method:m,headers:{'Content-Type':'application/json','x-sotto-token':TOKEN},body:b?JSON.stringify(b):undefined}).then(r=>r.json());
 async function refresh(){
   const as = state.viewAs==='seller'?'seller':state.viewAs==='bidderA'?'A':'B';
   try{ vm = await api('GET','/api/state?as='+as); }catch(e){ vm={ready:false,phase:'draft',bids:{A:null,B:null}}; }

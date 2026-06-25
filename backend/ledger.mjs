@@ -55,7 +55,11 @@ async function submit(actAs, commands) {
       return d.transaction;
     } catch (e) {
       lastErr = e;
-      if (String(e).includes('PACKAGE_NAMES_NOT_FOUND')) { await new Promise((r) => setTimeout(r, 1500)); continue; }
+      const m = String(e);
+      // Retry the brief post-startup package-vetting window (readyz precedes vetting).
+      if (m.includes('PACKAGE_NAMES_NOT_FOUND') || m.includes('PACKAGE_SELECTION_FAILED') || m.includes('consistently vetted')) {
+        await new Promise((r) => setTimeout(r, 1500)); continue;
+      }
       throw e;
     }
   }
