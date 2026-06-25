@@ -98,16 +98,18 @@ testSecReclaimAfterGrace = do
   assertMsg "A reclaimed its 800 escrow"
     (any (\(_, h) -> h.instrument == CASH && h.quantity == 800.0 && h.owner == f.bidderA) aCash)
 
--- ============ SEC-05: withdraw before deadline refunds the escrow (no orphan) ============
-testSecWithdrawRefunds : Script ()
-testSecWithdrawRefunds = do
+-- ============ SEC-05: bids are binding; clearing only within the window; reclaim after ============
+testSecClearWindowClosed : Script ()
+testSecClearWindowClosed = do
   f <- setup
   (bidA, escA) <- placeBid f f.bidderA f.invA 800.0
-  _ <- submit f.bidderA do exerciseCmd bidA Withdraw
-  gone <- queryContractId f.bidderA escA
-  assertMsg "escrow consumed by withdraw" (isNone gone)
+  passTime (hours 27)                          -- past deadline (24h) + grace (2h)
+  -- the clearing window has closed → the seller can no longer clear
+  submitMustFail f.seller do exerciseCmd f.auctionCid Clear with assetCid = f.assetCid, bids = [bidA]
+  -- and the bidder can reclaim the abandoned escrow (no orphaned funds)
+  _ <- submit f.bidderA do exerciseCmd escA Reclaim
   aCash <- query @Holding f.bidderA
-  assertMsg "A got its 800 back on withdraw"
+  assertMsg "A reclaimed its 800 after the closed window"
     (any (\(_, h) -> h.instrument == CASH && h.quantity == 800.0 && h.owner == f.bidderA) aCash)
 
 -- ============ INV-2: atomic DvP — happy path ============
@@ -193,7 +195,6 @@ testInv3NoLateChanges = do
   f <- setup
   (bidA, _) <- placeBid f f.bidderA f.invA 800.0
   passTime (hours 25)
-  submitMustFail f.bidderA do exerciseCmd bidA Withdraw
   lateCash <- submit f.bank do createCmd Holding with issuer = f.bank, owner = f.bidderB, instrument = CASH, quantity = 700.0
   submitMustFail f.bidderB do exerciseCmd f.invB PlaceSealedBid with amount = 700.0, cashCid = lateCash
 

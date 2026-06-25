@@ -17,10 +17,12 @@ import DA.Foldable (forA_)
 import DA.Time (RelTime, addRelTime, hours)
 import Sotto.Types
 
--- | Grace period after the deadline during which only the clearing party may
---   clear; afterwards a bidder may self-reclaim an un-cleared escrow (SEC-04).
+-- | The clearing window is (deadline, deadline + graceReclaim]. Only the clearing
+--   party may clear, and only within it; AFTER it, a bidder may self-reclaim an
+--   un-cleared escrow (SEC-04). The windows are mutually exclusive, so an escrow can
+--   never be both reclaimed and cleared — no orphaned SealedBid is possible.
 graceReclaim : RelTime
-graceReclaim = hours 1
+graceReclaim = hours 2
 
 -- ---------------------------------------------------------------------------
 -- Holding (MODEL-01): a minimal on-ledger asset/cash token. signatory = issuer;
@@ -81,14 +83,6 @@ template EscrowedCash
       controller bidder, clearingParty
       do create Holding with issuer; owner = recipient; instrument = CASH; quantity
 
-    -- Bidder withdraws their own escrow BEFORE the deadline (SEC-05).
-    choice CancelByBidder : ContractId Holding
-      controller bidder
-      do
-        now <- getTime
-        assertMsg "Can only cancel before the deadline" (now <= deadline)
-        create Holding with issuer; owner = bidder; instrument = CASH; quantity
-
     -- Bidder reclaims AFTER deadline+grace if the clearing party never cleared (SEC-04).
     choice Reclaim : ContractId Holding
       controller bidder
@@ -124,6 +118,8 @@ template Auction
       do
         now <- getTime
         assertMsg "Cannot clear before the deadline" (now > deadline)
+        assertMsg "Clearing window has closed; escrows are now reclaimable by bidders"
+          (now <= addRelTime deadline graceReclaim)
 
         -- SEC-06: the delivered asset must match the advertised block.
         asset <- fetch assetCid
@@ -226,11 +222,7 @@ template SealedBid
       controller seller
       do exercise escrow Release with recipient = bidder
 
-    -- INV-3 / SEC-05: a bidder may withdraw only BEFORE the deadline; this also
-    -- refunds the escrow (no orphaned funds).
-    choice Withdraw : ContractId Holding
-      controller bidder
-      do
-        now <- getTime
-        assertMsg "Cannot withdraw a bid after the deadline" (now <= deadline)
-        exercise escrow CancelByBidder
+    -- SEC-05: sealed bids are BINDING (no withdrawal) — standard for sealed-bid
+    -- auctions, and it removes any way to orphan an escrow from its bid. If the
+    -- clearing party never clears, the bidder reclaims via EscrowedCash.Reclaim
+    -- after the clearing window closes.
