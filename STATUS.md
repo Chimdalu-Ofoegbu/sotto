@@ -44,6 +44,10 @@ Restore the build env in any WSL shell: `source ~/.sotto-env.sh`. Fresh install:
    (INV-1, INV-2, INV-4).
 4. **No off-ledger plaintext aggregation:** backend/UI use only single-party (`readAs`) scoped
    queries; no admin/omniscient reads.
+5. **Full security audit:** see `SECURITY-AUDIT.md`. Core claims **verified secure** (INV-1/2/3/5,
+   evidence-cited); no critical findings. Disclosed demo-trust-model limitations (escrow custodied
+   by the clearing party; unauthenticated local UI presenter) and production-hardening items
+   (bind bids↔auction, escrow reclaim, checksum pinning) are logged with remediation.
 
 ## Known Issues / Notes
 - Resolved: model and tests are now **separate packages** (`daml/` model, `daml/test/`
