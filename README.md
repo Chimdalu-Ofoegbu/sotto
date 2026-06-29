@@ -90,11 +90,15 @@ make demo     # or: bash scripts/demo.sh   — provisions parties, asset, sample
 **The three-view UI:**
 
 ```bash
-node frontend/server.mjs            # serves http://localhost:3000
+node frontend/server.mjs            # prints http://localhost:3000/?token=…  (open that exact URL)
 ```
 
-Open it, click **Set up auction**, submit Bidder A's bid — and watch **Bidder B's column
-stay empty** while the Seller sees both. Wait for the deadline, click **Clear**.
+The server prints a **tokenized URL** — open it as-is (the `?token=…` is required; a plain
+`localhost:3000` returns "unauthorized"). Use the **Viewing as** switcher (Seller / Bidder A /
+Bidder B) to see each party's own ledger view: place Meridian's (A) sealed bid and watch it
+**never appear on Halcyon's (B) screen**, while the Seller sees both. After the deadline, switch
+to the Seller and **Clear**. The bottom **Scenario** bar (Two bids · Single bidder · Tie · Short
+escrow) stages each situation in one click.
 
 > `make` not installed? Every target maps to a script: `bash scripts/sandbox.sh`,
 > `bash scripts/demo.sh`, `make test   # builds the model + runs the Daml Script suite`.
