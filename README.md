@@ -87,18 +87,25 @@ make start    # or: bash scripts/sandbox.sh
 make demo     # or: bash scripts/demo.sh   — provisions parties, asset, sample bids, clears
 ```
 
-**The three-view UI:**
+**The UI — a landing page + a live three-party demo:**
 
 ```bash
 node frontend/server.mjs            # prints http://localhost:3000/?token=…  (open that exact URL)
 ```
 
-The server prints a **tokenized URL** — open it as-is (the `?token=…` is required; a plain
-`localhost:3000` returns "unauthorized"). Use the **Viewing as** switcher (Seller / Bidder A /
-Bidder B) to see each party's own ledger view: place Meridian's (A) sealed bid and watch it
-**never appear on Halcyon's (B) screen**, while the Seller sees both. After the deadline, switch
-to the Seller and **Clear**. The bottom **Scenario** bar (Two bids · Single bidder · Tie · Short
-escrow) stages each situation in one click.
+The server prints a **tokenized URL** — open it as-is (the `?token=…` is required; the demo's
+`/api/*` endpoints reject an untokened caller). You land on the **landing page**; click
+**Launch Demo** (the token is carried through automatically) to open the working demo at
+`/demo.html`.
+
+In the demo, use the **Viewing / acting as** switcher (Seller / Bidder A / Bidder B) to drive and
+watch each party's own ledger view. As the **Seller**, publish the block; as **Bidder A
+(Meridian)** submit a sealed bid and watch it **never appear on Bidder B (Halcyon)'s screen**,
+while the Seller only sees that bids are in. When the bidding window closes, switch to the Seller
+and **Clear to best bid** — asset-for-cash settles atomically, the loser is refunded and never
+learns the winning price. **Auto-run scenario** stages the whole two-bid flow in one click;
+**Reset** starts over. Every panel is rendered **only** from that party's own party-scoped ledger
+reads — the privacy contrast is protocol-enforced, not faked in the view layer.
 
 > `make` not installed? Every target maps to a script: `bash scripts/sandbox.sh`,
 > `bash scripts/demo.sh`, `make test   # builds the model + runs the Daml Script suite`.

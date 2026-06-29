@@ -18,7 +18,17 @@ import * as L from '../backend/ledger.mjs';
 const PORT = process.env.PORT || 3000;
 const TOKEN = process.env.SOTTO_TOKEN || randomBytes(16).toString('hex');
 const DIR = (f) => fileURLToPath(new URL('./' + f, import.meta.url));
-const STATIC = { '/screens.js': ['screens.js', 'text/javascript'] };   // SEC-09: allow-list
+// SEC-09: static files are an explicit allow-list (no arbitrary file reads).
+const STATIC = {
+  '/styles.css':     ['styles.css',     'text/css'],
+  '/main.js':        ['main.js',        'text/javascript'],
+  '/demo.js':        ['demo.js',        'text/javascript'],
+  '/demo.html':      ['demo.html',      'text/html'],
+  '/favicon.svg':    ['favicon.svg',    'image/svg+xml'],
+  '/og.png':         ['og.png',         'image/png'],
+  '/sotto-logo.jpg': ['sotto-logo.jpg', 'image/jpeg'],
+  '/screens.js':     ['screens.js',     'text/javascript'], // legacy UI (kept, unused by the new design)
+};
 const ASSET_FACE = 25000000, RESERVE = 24600000;
 const BOOK = {
   normal:   { A: 24812500, B: 24790000 },
